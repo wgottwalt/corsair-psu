@@ -1,0 +1,6 @@
+Get support up for the AXi series:
+
+1B1C 1C00 Controller for Corsair Link            AX760i, AX860i, ?AX1200i?
+1B1C 1C01 ?
+1B1C 1C02 Corsair AX1500i
+1B1C 1C11 Corsair AX1600i

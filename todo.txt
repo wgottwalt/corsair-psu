@@ -4,3 +4,12 @@ Get support up for the AXi series:
 1B1C 1C01 ?
 1B1C 1C02 Corsair AX1500i
 1B1C 1C11 Corsair AX1600i
+
+userspace tool:
+A tool which uses normal usb transfers (instead of usb hid messages) to do
+the same the current hwmon usb hid driver does.
+
+enhanced corsair-psu driver:
+A normal usb driver if RMi/HXi series also supports normal usb transfers,
+if not, enhance driver to use normal usb transfers or hid message on per
+product basis.

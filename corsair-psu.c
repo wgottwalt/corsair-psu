@@ -68,7 +68,7 @@
 #define PSU_CMD_TOTAL_WATTS	0xEE
 #define PSU_CMD_TOTAL_UPTIME	0xD1
 #define PSU_CMD_UPTIME		0xD2
-#define PSU_CMD_INIT		0xFE
+#define PSU_ADDR_INIT		0xFE
 
 #define L_IN_VOLTS		"v_in"
 #define L_OUT_VOLTS_12V		"v_out +12v"
@@ -119,36 +119,31 @@ struct corsairpsu_data {
 };
 
 /* some values are SMBus LINEAR11 data which need a conversion */
-static int corsairpsu_linear11_to_int(const int val)
+static int corsairpsu_linear11_to_int(u16 v16, int scale)
 {
-	int exp = (val & 0xFFFF) >> 0x0B;
-	int mant = val & 0x7FF;
-	int i;
+	s16 exponent;
+	s32 mantissa;
+	int val;
 
-	if (exp > 0x0F)
-		exp -= 0x20;
-	if (mant > 0x3FF)
-		mant -= 0x800;
-	if ((mant & 0x01) == 1)
-		++mant;
-	if (exp < 0) {
-		for (i = 0; i < -exp; ++i)
-			mant /= 2;
-	} else {
-		for (i = 0; i < exp; ++i)
-			mant *= 2;
-	}
+	exponent = ((s16)v16) >> 11;
+	mantissa = ((s16)((v16 & 0x7ff) << 5)) >> 5;
+	val = mantissa * scale;
 
-	return mant;
+	if (exponent >= 0)
+		val <<= exponent;
+	else
+		val >>= -exponent;
+
+	return val;
 }
 
-static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2, void *data)
+static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 addr, u8 p1, u8 p2, void *data)
 {
 	unsigned long time;
 	int ret;
 
 	memset(priv->cmd_buffer, 0, CMD_BUFFER_SIZE);
-	priv->cmd_buffer[0] = p0;
+	priv->cmd_buffer[0] = addr;
 	priv->cmd_buffer[1] = p1;
 	priv->cmd_buffer[2] = p2;
 
@@ -164,11 +159,11 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2,
 		return -ETIMEDOUT;
 
 	/*
-	 * at the start of the reply is an echo of the send command/length in the same order it
+	 * at the start of the reply is an echo of the send command/address in the same order it
 	 * was send, not every command is supported on every device class, if a command is not
-	 * supported, the length value in the reply is okay, but the command value is set to 0
+	 * supported, the address value in the reply is okay, but the command value is set to 0
 	 */
-	if (p0 != priv->cmd_buffer[0] || p1 != priv->cmd_buffer[1])
+	if (addr != priv->cmd_buffer[0] || p1 != priv->cmd_buffer[1])
 		return -EOPNOTSUPP;
 
 	if (data)
@@ -180,10 +175,10 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2,
 static int corsairpsu_init(struct corsairpsu_data *priv)
 {
 	/*
-	 * PSU_CMD_INIT uses swapped length/command and expects 2 parameter bytes, this command
+	 * PSU_ADDR_INIT uses swapped address/command and expects 2 parameter bytes, this command
 	 * actually generates a reply, but we don't need it
 	 */
-	return corsairpsu_usb_cmd(priv, PSU_CMD_INIT, 3, 0, NULL);
+	return corsairpsu_usb_cmd(priv, PSU_ADDR_INIT, 3, 0, NULL);
 }
 
 static int corsairpsu_fwinfo(struct corsairpsu_data *priv)
@@ -249,14 +244,14 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	case PSU_CMD_RAIL_AMPS:
 	case PSU_CMD_TEMP0:
 	case PSU_CMD_TEMP1:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000;
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000);
 		break;
 	case PSU_CMD_FAN:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF);
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
 		break;
 	case PSU_CMD_RAIL_WATTS:
 	case PSU_CMD_TOTAL_WATTS:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000000;
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000000) ;
 		break;
 	case PSU_CMD_TOTAL_UPTIME:
 	case PSU_CMD_UPTIME:

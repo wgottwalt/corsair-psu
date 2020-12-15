@@ -234,6 +234,15 @@ cmd_fail:
 	return ret;
 }
 
+static int corsairpsu_set_value(struct corsairpsu_data *priv, u8 cmd, u8 in, void *out)
+{
+	int ret;
+	mutex_lock(&priv->lock);
+	ret = corsairpsu_usb_cmd(priv, 2, cmd, in, out);
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
 static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, long *val)
 {
 	u8 data[REPLY_SIZE];
@@ -288,7 +297,8 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sensor_types type,
 					       u32 attr, int channel)
 {
-	if (type == hwmon_temp && (attr == hwmon_temp_input || attr == hwmon_temp_label || attr == hwmon_temp_rated_max))
+	if (type == hwmon_temp && (attr == hwmon_temp_input || attr == hwmon_temp_label
+	|| attr == hwmon_temp_rated_max))
 		return 0444;
 	else if (type == hwmon_fan && (attr == hwmon_fan_input || attr == hwmon_fan_label))
 		return 0444;
@@ -296,9 +306,11 @@ static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sens
 		return 0644;
 	else if (type == hwmon_power && (attr == hwmon_power_input || attr == hwmon_power_label))
 		return 0444;
-	else if (type == hwmon_in && (attr == hwmon_in_input || attr == hwmon_in_label || attr == hwmon_in_rated_max || attr == hwmon_in_rated_min))
+	else if (type == hwmon_in && (attr == hwmon_in_input || attr == hwmon_in_label
+	|| attr == hwmon_in_rated_max || attr == hwmon_in_rated_min))
 		return 0444;
-	else if (type == hwmon_curr && (attr == hwmon_curr_input || attr == hwmon_curr_label || attr == hwmon_curr_rated_max || attr == hwmon_curr_rated_min) && channel != 0)
+	else if (type == hwmon_curr && (attr == hwmon_curr_input || attr == hwmon_curr_label
+	|| attr == hwmon_curr_rated_max || attr == hwmon_curr_rated_min) && channel != 0)
 		return 0444;
 
 	return 0;
@@ -428,8 +440,43 @@ static int corsairpsu_hwmon_ops_read_string(struct device *dev, enum hwmon_senso
 }
 
 static int corsairpsu_hwmon_ops_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
-									 int channel, long *val) {
-	return 0;
+									 int channel, long val) {
+	struct corsairpsu_data *priv = dev_get_drvdata(dev);
+	int ret;
+	if(type == hwmon_pwm) {
+		switch (attr) {
+		case hwmon_pwm_input:
+			if(channel == 0) { // fan duty cycle
+				if (val < 0 || val > 255)
+					return -EINVAL;
+				val = DIV_ROUND_CLOSEST(val * 100, 255); //scale 0->255 to 0->100
+				ret = corsairpsu_set_value(priv, PSU_CMD_FAN_DUTY_CYCLE, val & 0xff, NULL);
+				if (ret < 0)
+					return -EINVAL;
+				else
+					return 1;
+			}
+			break;
+		case hwmon_pwm_mode:
+			if(channel == 0) { // fan ctrl mode, 0 = hw, 1 = sw
+				switch(val) {
+				case 0:
+				case 1:
+					ret = corsairpsu_set_value(priv, PSU_CMD_FAN_MODE, val & 0xff, NULL);
+					if (ret < 0)
+						return -EINVAL;
+					else
+						return 1;
+				default:
+					return -EINVAL;
+				}
+			}
+			break;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
+	return -EOPNOTSUPP;
 }
 
 static const struct hwmon_ops corsairpsu_hwmon_ops = {

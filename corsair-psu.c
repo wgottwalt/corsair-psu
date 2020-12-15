@@ -302,7 +302,7 @@ static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sens
 		return 0444;
 	else if (type == hwmon_fan && (attr == hwmon_fan_input || attr == hwmon_fan_label))
 		return 0444;
-	else if (type == hwmon_pwm && (attr == hwmon_pwm_input || attr == hwmon_pwm_mode))
+	else if (type == hwmon_pwm && (attr == hwmon_pwm_input || attr == hwmon_pwm_enable))
 		return 0644;
 	else if (type == hwmon_power && (attr == hwmon_power_input || attr == hwmon_power_label))
 		return 0444;
@@ -337,7 +337,7 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 		case hwmon_pwm_input:
 			ret = corsairpsu_get_value(priv, PSU_CMD_FAN_DUTY_CYCLE, 0, val);
 			break;
-		case hwmon_pwm_mode:
+		case hwmon_pwm_enable:
 			ret = corsairpsu_get_value(priv, PSU_CMD_FAN_MODE, 0, val);
 			break;
 		default:
@@ -457,7 +457,7 @@ static int corsairpsu_hwmon_ops_write(struct device *dev, enum hwmon_sensor_type
 					return 1;
 			}
 			break;
-		case hwmon_pwm_mode:
+		case hwmon_pwm_enable:
 			if(channel == 0) { // fan ctrl mode, 0 = hw, 1 = sw
 				switch(val) {
 				case 0:
@@ -495,7 +495,7 @@ static const struct hwmon_channel_info *corsairpsu_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
 	HWMON_CHANNEL_INFO(pwm,
-					HWMON_PWM_INPUT | HWMON_PWM_MODE),
+					HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
 	HWMON_CHANNEL_INFO(power,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
 			   HWMON_P_INPUT | HWMON_P_LABEL,

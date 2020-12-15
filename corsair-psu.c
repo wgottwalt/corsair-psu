@@ -22,21 +22,23 @@
  *
  * message size = 64 bytes (request and response, little endian)
  * request:
- *	[length][command][param0][param1][paramX]...
+ *	[address][command][param0][param1][paramX]...
  * reply:
- *	[echo of length][echo of command][data0][data1][dataX]...
+ *	[echo of address][echo of command][data0][data1][dataX]...
  *
+ *  - heavily based on PMBus
  *	- commands are byte sized opcodes
- *	- length is the sum of all bytes of the commands/params
+ *	- address is a 7 bit id + a read/write bit (use an address of "3" to read, "2" to write)
  *	- the micro-controller of most of these PSUs support concatenation in the request and reply,
  *	  but it is better to not rely on this (it is also hard to parse)
  *	- the driver uses raw events to be accessible from userspace (though this is not really
  *	  supported, it is just there for convenience, may be removed in the future)
- *	- a reply always start with the length and command in the same order the request used it
+ *	- a reply always starts with the address and command in the same order the request used it
  *	- length of the reply data is specific to the command used
  *	- some of the commands work on a rail and can be switched to a specific rail (0 = 12v,
  *	  1 = 5v, 2 = 3.3v)
- *	- the format of the init command 0xFE is swapped length/command bytes
+ *	- the PSU expects a "handshake" init command before all other commands will work
+ *	- send the handshake by sending 0x03 to the address 0xfe (packet will be [0xfe 0x03])
  *	- parameter bytes amount and values are specific to the command (rail setting is the only
  *	  for now that uses non-zero values)
  *	- there are much more commands, especially for configuring the device, but they are not
@@ -44,6 +46,7 @@
  *	- the driver supports debugfs for values not fitting into the hwmon class
  *	- not every device class (HXi, RMi or AXi) supports all commands
  *	- it is a pure sensors reading driver (will not support configuring)
+ *	- future work may include reading and acting on the values in the PMBus status registers
  */
 
 #define DRIVER_NAME		"corsair-psu"
@@ -54,9 +57,9 @@
 #define SECONDS_PER_HOUR	(60 * 60)
 #define SECONDS_PER_DAY		(SECONDS_PER_HOUR * 24)
 
-#define PSU_CMD_SELECT_RAIL	0x00 /* expects length 2 */
-#define PSU_CMD_IN_VOLTS	0x88 /* the rest of the commands expect length 3 */
-#define PSU_CMD_IN_AMPS		0x89
+#define PSU_CMD_SELECT_RAIL	0x00 /* can be read or written, use addr "2" to write */
+#define PSU_CMD_IN_VOLTS	0x88 /* the rest of the commands are only read in this driver, */
+#define PSU_CMD_IN_AMPS		0x89 /* so use an address of "3" */
 #define PSU_CMD_RAIL_OUT_VOLTS	0x8B
 #define PSU_CMD_RAIL_AMPS	0x8C
 #define PSU_CMD_TEMP0		0x8D
@@ -160,7 +163,7 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 addr, u8 p1, u8 p
 
 	/*
 	 * at the start of the reply is an echo of the send command/address in the same order it
-	 * was send, not every command is supported on every device class, if a command is not
+	 * was send, not every command is supported on every device class. If a command is not
 	 * supported, the address value in the reply is okay, but the command value is set to 0
 	 */
 	if (addr != priv->cmd_buffer[0] || p1 != priv->cmd_buffer[1])
@@ -175,8 +178,8 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 addr, u8 p1, u8 p
 static int corsairpsu_init(struct corsairpsu_data *priv)
 {
 	/*
-	 * PSU_ADDR_INIT uses swapped address/command and expects 2 parameter bytes, this command
-	 * actually generates a reply, but we don't need it
+	 * PSU_ADDR_INIT sends a value of 0x03 to the address 0xfe (PSU_ADDR_INIT)
+	 * This init message is replied to with the model name of the PSU, but we ignore it.
 	 */
 	return corsairpsu_usb_cmd(priv, PSU_ADDR_INIT, 3, 0, NULL);
 }

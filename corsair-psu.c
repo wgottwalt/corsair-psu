@@ -2,7 +2,6 @@
 /*
  * corsair-psu.c - Linux driver for Corsair power supplies with HID sensors interface
  * Copyright (C) 2020 Wilken Gottwalt <wilken.gottwalt@posteo.net>
- * Copyright (C) 2020 Jack Doan <me@jackdoan.com>
  */
 
 #include <linux/completion.h>
@@ -596,5 +595,4 @@ module_hid_driver(corsairpsu_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Wilken Gottwalt <wilken.gottwalt@posteo.net>");
-MODULE_AUTHOR("Jack Doan <me@jackdoan.com>");
 MODULE_DESCRIPTION("Linux driver for Corsair power supplies with HID sensors interface");

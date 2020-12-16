@@ -54,8 +54,12 @@
 #define SECONDS_PER_HOUR	(60 * 60)
 #define SECONDS_PER_DAY		(SECONDS_PER_HOUR * 24)
 
-#define PSU_CMD_SELECT_RAIL	0x00 /* expects length 2 */
-#define PSU_CMD_IN_VOLTS	0x88 /* the rest of the commands expect length 3 */
+#define PSU_CMD_SELECT_RAIL	0x00
+#define PSU_CMD_RAIL_OV_FAULT	0x40
+#define PSU_CMD_RAIL_UV_FAULT	0x44
+#define PSU_CMD_RAIL_OC_FAULT	0x46
+#define PSU_CMD_RAIL_TEMP_FAULT	0x4f
+#define PSU_CMD_IN_VOLTS	0x88
 #define PSU_CMD_IN_AMPS		0x89
 #define PSU_CMD_RAIL_OUT_VOLTS	0x8B
 #define PSU_CMD_RAIL_AMPS	0x8C
@@ -210,6 +214,9 @@ static int corsairpsu_request(struct corsairpsu_data *priv, u8 cmd, u8 rail, voi
 	case PSU_CMD_RAIL_OUT_VOLTS:
 	case PSU_CMD_RAIL_AMPS:
 	case PSU_CMD_RAIL_WATTS:
+	case PSU_CMD_RAIL_OV_FAULT:
+	case PSU_CMD_RAIL_UV_FAULT:
+	case PSU_CMD_RAIL_OC_FAULT:
 		ret = corsairpsu_usb_cmd(priv, 2, PSU_CMD_SELECT_RAIL, rail, NULL);
 		if (ret < 0)
 			goto cmd_fail;
@@ -247,8 +254,12 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	case PSU_CMD_IN_AMPS:
 	case PSU_CMD_RAIL_OUT_VOLTS:
 	case PSU_CMD_RAIL_AMPS:
+	case PSU_CMD_RAIL_OV_FAULT:
+	case PSU_CMD_RAIL_UV_FAULT:
+	case PSU_CMD_RAIL_OC_FAULT:
 	case PSU_CMD_TEMP0:
 	case PSU_CMD_TEMP1:
+	case PSU_CMD_RAIL_TEMP_FAULT:
 		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000;
 		break;
 	case PSU_CMD_FAN:
@@ -273,15 +284,18 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sensor_types type,
 					       u32 attr, int channel)
 {
-	if (type == hwmon_temp && (attr == hwmon_temp_input || attr == hwmon_temp_label))
+	if (type == hwmon_temp && (attr == hwmon_temp_input || attr == hwmon_temp_label
+		|| attr == hwmon_temp_crit))
 		return 0444;
 	else if (type == hwmon_fan && (attr == hwmon_fan_input || attr == hwmon_fan_label))
 		return 0444;
 	else if (type == hwmon_power && (attr == hwmon_power_input || attr == hwmon_power_label))
 		return 0444;
-	else if (type == hwmon_in && (attr == hwmon_in_input || attr == hwmon_in_label))
+	else if (type == hwmon_in && (attr == hwmon_in_input || attr == hwmon_in_label
+			|| attr == hwmon_in_crit || attr == hwmon_in_lcrit))
 		return 0444;
-	else if (type == hwmon_curr && (attr == hwmon_curr_input || attr == hwmon_curr_label))
+	else if (type == hwmon_curr && (attr == hwmon_curr_input || attr == hwmon_curr_label
+			|| attr == hwmon_curr_crit))
 		return 0444;
 
 	return 0;
@@ -291,11 +305,16 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 				     int channel, long *val)
 {
 	struct corsairpsu_data *priv = dev_get_drvdata(dev);
-	int ret;
+	int ret = -EOPNOTSUPP;
 
-	if (type == hwmon_temp && attr == hwmon_temp_input && channel < 2) {
-		ret = corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0, channel,
-					   val);
+	if (type == hwmon_temp && channel < 2) {
+		if(attr == hwmon_temp_input) {
+			ret = corsairpsu_get_value(priv,
+									   channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0, channel, val);
+		}
+		else if(attr == hwmon_temp_crit) {
+			ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_TEMP_FAULT, 0, val);
+		}
 	} else if (type == hwmon_fan && attr == hwmon_fan_input) {
 		ret = corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
 	} else if (type == hwmon_power && attr == hwmon_power_input) {
@@ -309,24 +328,54 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 		default:
 			return -EOPNOTSUPP;
 		}
-	} else if (type == hwmon_in && attr == hwmon_in_input) {
-		switch (channel) {
-		case 0:
-			ret = corsairpsu_get_value(priv, PSU_CMD_IN_VOLTS, 0, val);
+	} else if (type == hwmon_in) {
+		switch(attr) {
+		case hwmon_in_input:
+			switch (channel) {
+			case 0:
+				ret = corsairpsu_get_value(priv, PSU_CMD_IN_VOLTS, 0, val);
+				break;
+			case 1 ... 3:
+				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_OUT_VOLTS, channel - 1, val);
+				break;
+			default:
+				return -EOPNOTSUPP;
+			}
 			break;
-		case 1 ... 3:
-			ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_OUT_VOLTS, channel - 1, val);
+		case hwmon_in_crit:
+			if(channel >= 1 && channel <= 3)
+				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_OV_FAULT, channel - 1, val);
+			else
+				return -EOPNOTSUPP;
+			break;
+		case hwmon_in_lcrit:
+			if(channel >= 1 && channel <= 3)
+				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_UV_FAULT, channel - 1, val);
+			else
+				return -EOPNOTSUPP;
 			break;
 		default:
 			return -EOPNOTSUPP;
 		}
-	} else if (type == hwmon_curr && attr == hwmon_curr_input) {
-		switch (channel) {
-		case 0:
-			ret = corsairpsu_get_value(priv, PSU_CMD_IN_AMPS, 0, val);
+	} else if (type == hwmon_curr) {
+		switch(attr) {
+		case hwmon_curr_input:
+			switch (channel) {
+			case 0:
+				ret = corsairpsu_get_value(priv, PSU_CMD_IN_AMPS, 0, val);
+				break;
+			case 1 ... 3:
+				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS, channel - 1, val);
+				break;
+			default:
+				return -EOPNOTSUPP;
+			}
 			break;
-		case 1 ... 3:
-			ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS, channel - 1, val);
+		case hwmon_curr_crit:
+			if(channel >= 1 && channel <= 3)
+				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_OC_FAULT, channel - 1, val);
+			else
+				return -EOPNOTSUPP;
 			break;
 		default:
 			return -EOPNOTSUPP;
@@ -374,8 +423,8 @@ static const struct hwmon_channel_info *corsairpsu_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
-			   HWMON_T_INPUT | HWMON_T_LABEL,
-			   HWMON_T_INPUT | HWMON_T_LABEL),
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT,
+			   HWMON_T_INPUT | HWMON_T_LABEL | HWMON_T_CRIT),
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
 	HWMON_CHANNEL_INFO(power,
@@ -385,14 +434,14 @@ static const struct hwmon_channel_info *corsairpsu_info[] = {
 			   HWMON_P_INPUT | HWMON_P_LABEL),
 	HWMON_CHANNEL_INFO(in,
 			   HWMON_I_INPUT | HWMON_I_LABEL,
-			   HWMON_I_INPUT | HWMON_I_LABEL,
-			   HWMON_I_INPUT | HWMON_I_LABEL,
-			   HWMON_I_INPUT | HWMON_I_LABEL),
+			   HWMON_I_INPUT | HWMON_I_LABEL | HWMON_I_CRIT | HWMON_I_LCRIT,
+			   HWMON_I_INPUT | HWMON_I_LABEL | HWMON_I_CRIT | HWMON_I_LCRIT,
+			   HWMON_I_INPUT | HWMON_I_LABEL | HWMON_I_CRIT | HWMON_I_LCRIT),
 	HWMON_CHANNEL_INFO(curr,
 			   HWMON_C_INPUT | HWMON_C_LABEL,
-			   HWMON_C_INPUT | HWMON_C_LABEL,
-			   HWMON_C_INPUT | HWMON_C_LABEL,
-			   HWMON_C_INPUT | HWMON_C_LABEL),
+			   HWMON_C_INPUT | HWMON_C_LABEL | HWMON_C_CRIT,
+			   HWMON_C_INPUT | HWMON_C_LABEL | HWMON_C_CRIT,
+			   HWMON_C_INPUT | HWMON_C_LABEL | HWMON_C_CRIT),
 	NULL
 };
 

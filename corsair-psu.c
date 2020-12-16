@@ -22,21 +22,23 @@
  *
  * message size = 64 bytes (request and response, little endian)
  * request:
- *	[length][command][param0][param1][paramX]...
+ *	[address][command][param0][param1][paramX]...
  * reply:
- *	[echo of length][echo of command][data0][data1][dataX]...
+ *	[echo of address][echo of command][data0][data1][dataX]...
  *
+ *  - heavily based on PMBus
  *	- commands are byte sized opcodes
- *	- length is the sum of all bytes of the commands/params
+ *	- address is a 7 bit id + a read/write bit (use an address of "3" to read, "2" to write)
  *	- the micro-controller of most of these PSUs support concatenation in the request and reply,
  *	  but it is better to not rely on this (it is also hard to parse)
  *	- the driver uses raw events to be accessible from userspace (though this is not really
  *	  supported, it is just there for convenience, may be removed in the future)
- *	- a reply always start with the length and command in the same order the request used it
+ *	- a reply always starts with the address and command in the same order the request used it
  *	- length of the reply data is specific to the command used
  *	- some of the commands work on a rail and can be switched to a specific rail (0 = 12v,
  *	  1 = 5v, 2 = 3.3v)
- *	- the format of the init command 0xFE is swapped length/command bytes
+ *	- the PSU expects a "handshake" init command before all other commands will work
+ *	- send the handshake by sending 0x03 to the address 0xfe (packet will be [0xfe 0x03])
  *	- parameter bytes amount and values are specific to the command (rail setting is the only
  *	  for now that uses non-zero values)
  *	- there are much more commands, especially for configuring the device, but they are not
@@ -44,6 +46,7 @@
  *	- the driver supports debugfs for values not fitting into the hwmon class
  *	- not every device class (HXi, RMi or AXi) supports all commands
  *	- it is a pure sensors reading driver (will not support configuring)
+ *	- future work may include reading and acting on the values in the PMBus status registers
  */
 
 #define DRIVER_NAME		"corsair-psu"
@@ -54,9 +57,9 @@
 #define SECONDS_PER_HOUR	(60 * 60)
 #define SECONDS_PER_DAY		(SECONDS_PER_HOUR * 24)
 
-#define PSU_CMD_SELECT_RAIL	0x00 /* expects length 2 */
-#define PSU_CMD_IN_VOLTS	0x88 /* the rest of the commands expect length 3 */
-#define PSU_CMD_IN_AMPS		0x89
+#define PSU_CMD_SELECT_RAIL	0x00 /* can be read or written, use addr "2" to write */
+#define PSU_CMD_IN_VOLTS	0x88 /* the rest of the commands are only read in this driver, */
+#define PSU_CMD_IN_AMPS		0x89 /* so use an address of "3" */
 #define PSU_CMD_RAIL_OUT_VOLTS	0x8B
 #define PSU_CMD_RAIL_AMPS	0x8C
 #define PSU_CMD_TEMP0		0x8D
@@ -68,7 +71,7 @@
 #define PSU_CMD_TOTAL_WATTS	0xEE
 #define PSU_CMD_TOTAL_UPTIME	0xD1
 #define PSU_CMD_UPTIME		0xD2
-#define PSU_CMD_INIT		0xFE
+#define PSU_ADDR_INIT		0xFE
 
 #define L_IN_VOLTS		"v_in"
 #define L_OUT_VOLTS_12V		"v_out +12v"
@@ -119,36 +122,31 @@ struct corsairpsu_data {
 };
 
 /* some values are SMBus LINEAR11 data which need a conversion */
-static int corsairpsu_linear11_to_int(const int val)
+static int corsairpsu_linear11_to_int(u16 v16, int scale)
 {
-	int exp = (val & 0xFFFF) >> 0x0B;
-	int mant = val & 0x7FF;
-	int i;
+	s16 exponent;
+	s32 mantissa;
+	int val;
 
-	if (exp > 0x0F)
-		exp -= 0x20;
-	if (mant > 0x3FF)
-		mant -= 0x800;
-	if ((mant & 0x01) == 1)
-		++mant;
-	if (exp < 0) {
-		for (i = 0; i < -exp; ++i)
-			mant /= 2;
-	} else {
-		for (i = 0; i < exp; ++i)
-			mant *= 2;
-	}
+	exponent = ((s16)v16) >> 11;
+	mantissa = ((s16)((v16 & 0x7ff) << 5)) >> 5;
+	val = mantissa * scale;
 
-	return mant;
+	if (exponent >= 0)
+		val <<= exponent;
+	else
+		val >>= -exponent;
+
+	return val;
 }
 
-static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2, void *data)
+static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 addr, u8 p1, u8 p2, void *data)
 {
 	unsigned long time;
 	int ret;
 
 	memset(priv->cmd_buffer, 0, CMD_BUFFER_SIZE);
-	priv->cmd_buffer[0] = p0;
+	priv->cmd_buffer[0] = addr;
 	priv->cmd_buffer[1] = p1;
 	priv->cmd_buffer[2] = p2;
 
@@ -164,11 +162,11 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2,
 		return -ETIMEDOUT;
 
 	/*
-	 * at the start of the reply is an echo of the send command/length in the same order it
-	 * was send, not every command is supported on every device class, if a command is not
-	 * supported, the length value in the reply is okay, but the command value is set to 0
+	 * at the start of the reply is an echo of the send command/address in the same order it
+	 * was send, not every command is supported on every device class. If a command is not
+	 * supported, the address value in the reply is okay, but the command value is set to 0
 	 */
-	if (p0 != priv->cmd_buffer[0] || p1 != priv->cmd_buffer[1])
+	if (addr != priv->cmd_buffer[0] || p1 != priv->cmd_buffer[1])
 		return -EOPNOTSUPP;
 
 	if (data)
@@ -180,10 +178,10 @@ static int corsairpsu_usb_cmd(struct corsairpsu_data *priv, u8 p0, u8 p1, u8 p2,
 static int corsairpsu_init(struct corsairpsu_data *priv)
 {
 	/*
-	 * PSU_CMD_INIT uses swapped length/command and expects 2 parameter bytes, this command
-	 * actually generates a reply, but we don't need it
+	 * PSU_ADDR_INIT sends a value of 0x03 to the address 0xfe (PSU_ADDR_INIT)
+	 * This init message is replied to with the model name of the PSU, but we ignore it.
 	 */
-	return corsairpsu_usb_cmd(priv, PSU_CMD_INIT, 3, 0, NULL);
+	return corsairpsu_usb_cmd(priv, PSU_ADDR_INIT, 3, 0, NULL);
 }
 
 static int corsairpsu_fwinfo(struct corsairpsu_data *priv)
@@ -249,14 +247,14 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	case PSU_CMD_RAIL_AMPS:
 	case PSU_CMD_TEMP0:
 	case PSU_CMD_TEMP1:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000;
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000);
 		break;
 	case PSU_CMD_FAN:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF);
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
 		break;
 	case PSU_CMD_RAIL_WATTS:
 	case PSU_CMD_TOTAL_WATTS:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF) * 1000000;
+		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1000000) ;
 		break;
 	case PSU_CMD_TOTAL_UPTIME:
 	case PSU_CMD_UPTIME:

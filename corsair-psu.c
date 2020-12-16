@@ -120,6 +120,10 @@ struct corsairpsu_data {
 	u8 *cmd_buffer;
 	char vendor[REPLY_SIZE];
 	char product[REPLY_SIZE];
+	long temp_crit;
+	long voltage_crit[3];
+	long voltage_lcrit[3];
+	long current_crit[3];
 };
 
 /* some values are SMBus LINEAR11 data which need a conversion */
@@ -313,7 +317,8 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 									   channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0, channel, val);
 		}
 		else if(attr == hwmon_temp_crit) {
-			ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_TEMP_FAULT, 0, val);
+			*val = priv->temp_crit;
+			ret = 0;
 		}
 	} else if (type == hwmon_fan && attr == hwmon_fan_input) {
 		ret = corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
@@ -343,14 +348,18 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 			}
 			break;
 		case hwmon_in_crit:
-			if(channel >= 1 && channel <= 3)
-				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_OV_FAULT, channel - 1, val);
+			if(channel >= 1 && channel <= 3) {
+				*val = priv->voltage_crit[channel-1];
+				ret = 0;
+			}
 			else
 				return -EOPNOTSUPP;
 			break;
 		case hwmon_in_lcrit:
-			if(channel >= 1 && channel <= 3)
-				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_UV_FAULT, channel - 1, val);
+			if(channel >= 1 && channel <= 3) {
+				*val = priv->voltage_lcrit[channel-1];
+				ret = 0;
+			}
 			else
 				return -EOPNOTSUPP;
 			break;
@@ -372,8 +381,10 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 			}
 			break;
 		case hwmon_curr_crit:
-			if(channel >= 1 && channel <= 3)
-				ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_OC_FAULT, channel - 1, val);
+			if(channel >= 1 && channel <= 3) {
+				*val = priv->current_crit[channel-1];
+				ret = 0;
+			}
 			else
 				return -EOPNOTSUPP;
 			break;
@@ -536,6 +547,7 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 {
 	struct corsairpsu_data *priv;
 	int ret;
+	int i;
 
 	priv = devm_kzalloc(&hdev->dev, sizeof(struct corsairpsu_data), GFP_KERNEL);
 	if (!priv)
@@ -574,6 +586,13 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to query firmware (%d)\n", ret);
 		goto fail_and_stop;
+	}
+	/* TODO: decide how to deal with failure to read these values */
+	corsairpsu_get_value(priv, PSU_CMD_RAIL_TEMP_FAULT, 0, &priv->temp_crit);
+	for(i = 0; i < 3; i++) {
+		corsairpsu_get_value(priv, PSU_CMD_RAIL_OV_FAULT, i, &priv->voltage_crit[i]);
+		corsairpsu_get_value(priv, PSU_CMD_RAIL_UV_FAULT, i, &priv->voltage_lcrit[i]);
+		corsairpsu_get_value(priv, PSU_CMD_RAIL_OC_FAULT, i, &priv->current_crit[i]);
 	}
 
 	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, "corsairpsu", priv,

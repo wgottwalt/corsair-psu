@@ -1,5 +1,4 @@
-EXTRA_CFLAGS = -DEXPORT_SYMTAB
-
+ccflags-y = -DEXPORT_SYMTAB
 obj-m := corsair-psu.o
 
 KDIR = /lib/modules/$(shell uname -r)/build/

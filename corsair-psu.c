@@ -280,37 +280,32 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 static void corsairpsu_get_criticals(struct corsairpsu_data *priv)
 {
 	long tmp;
-	int ret;
-	u8 rail;
+	int rail;
 
 	priv->temp_crit_support = 0;
-	priv->in_lcrit_support = 0;
 	priv->in_crit_support = 0;
+	priv->in_lcrit_support = 0;
 	priv->curr_crit_support = 0;
 
 	for (rail = 0; rail < TEMP_COUNT; ++rail) {
-		ret = corsairpsu_get_value(priv, PSU_CMD_TEMP_HCRIT, rail, &tmp);
-		if (ret == 0) {
+		if (!corsairpsu_get_value(priv, PSU_CMD_TEMP_HCRIT, rail, &tmp)) {
 			priv->temp_crit_support |= BIT(rail);
 			priv->temp_crit[rail] = tmp;
 		}
 	}
 
 	for (rail = 0; rail < RAIL_COUNT; ++rail) {
-		ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS_HCRIT, rail, &tmp);
-		if (ret == 0) {
+		if (!corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS_HCRIT, rail, &tmp)) {
 			priv->in_crit_support |= BIT(rail);
 			priv->in_crit[rail] = tmp;
 		}
 
-		ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS_LCRIT, rail, &tmp);
-		if (ret == 0) {
+		if (!corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS_LCRIT, rail, &tmp)) {
 			priv->in_lcrit_support |= BIT(rail);
 			priv->in_lcrit[rail] = tmp;
 		}
 
-		ret = corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS_HCRIT, rail, &tmp);
-		if (ret == 0) {
+		if (!corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS_HCRIT, rail, &tmp)) {
 			priv->curr_crit_support |= BIT(rail);
 			priv->curr_crit[rail] = tmp;
 		}
@@ -337,7 +332,8 @@ static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sens
 	return 0;
 }
 
-static int corsairpsu_hwmon_temp(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
+static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, int channel,
+				      long *val)
 {
 	int err = -EOPNOTSUPP;
 
@@ -351,13 +347,17 @@ static int corsairpsu_hwmon_temp(struct corsairpsu_data *priv, u32 attr, int cha
 				*val = priv->temp_crit[channel];
 				err = 0;
 			}
+			break;
+		default:
+			break;
 		}
 	}
 
 	return err;
 }
 
-static int corsairpsu_hwmon_power(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
+static int corsairpsu_hwmon_power_read(struct corsairpsu_data *priv, u32 attr, int channel,
+				       long *val)
 {
 	if (attr == hwmon_power_input) {
 		switch (channel) {
@@ -365,13 +365,15 @@ static int corsairpsu_hwmon_power(struct corsairpsu_data *priv, u32 attr, int ch
 			return corsairpsu_get_value(priv, PSU_CMD_TOTAL_WATTS, 0, val);
 		case 1 ... 3:
 			return corsairpsu_get_value(priv, PSU_CMD_RAIL_WATTS, channel - 1, val);
+		default:
+			break;
 		}
 	}
 
 	return -EOPNOTSUPP;
 }
 
-static int corsairpsu_hwmon_in(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
+static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
 {
 	int err = -EOPNOTSUPP;
 
@@ -382,6 +384,8 @@ static int corsairpsu_hwmon_in(struct corsairpsu_data *priv, u32 attr, int chann
 			return corsairpsu_get_value(priv, PSU_CMD_IN_VOLTS, 0, val);
 		case 1 ... 3:
 			return corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS, channel - 1, val);
+		default:
+			break;
 		}
 		break;
 	case hwmon_in_crit:
@@ -401,7 +405,8 @@ static int corsairpsu_hwmon_in(struct corsairpsu_data *priv, u32 attr, int chann
 	return err;
 }
 
-static int corsairpsu_hwmon_curr(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
+static int corsairpsu_hwmon_curr_read(struct corsairpsu_data *priv, u32 attr, int channel,
+				      long *val)
 {
 	int err = -EOPNOTSUPP;
 
@@ -412,6 +417,8 @@ static int corsairpsu_hwmon_curr(struct corsairpsu_data *priv, u32 attr, int cha
 			return corsairpsu_get_value(priv, PSU_CMD_IN_AMPS, 0, val);
 		case 1 ... 3:
 			return corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS, channel - 1, val);
+		default:
+			break;
 		}
 		break;
 	case hwmon_curr_crit:
@@ -419,6 +426,8 @@ static int corsairpsu_hwmon_curr(struct corsairpsu_data *priv, u32 attr, int cha
 			*val = priv->curr_crit[channel - 1];
 			err = 0;
 		}
+		break;
+	default:
 		break;
 	}
 
@@ -432,17 +441,17 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 
 	switch (type) {
 	case hwmon_temp:
-		return corsairpsu_hwmon_temp(priv, attr, channel, val);
+		return corsairpsu_hwmon_temp_read(priv, attr, channel, val);
 	case hwmon_fan:
 		if (attr == hwmon_fan_input)
 			return corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
 		return -EOPNOTSUPP;
 	case hwmon_power:
-		return corsairpsu_hwmon_power(priv, attr, channel, val);
+		return corsairpsu_hwmon_power_read(priv, attr, channel, val);
 	case hwmon_in:
-		return corsairpsu_hwmon_in(priv, attr, channel, val);
+		return corsairpsu_hwmon_in_read(priv, attr, channel, val);
 	case hwmon_curr:
-		return corsairpsu_hwmon_curr(priv, attr, channel, val);
+		return corsairpsu_hwmon_curr_read(priv, attr, channel, val);
 	default:
 		return -EOPNOTSUPP;
 	}

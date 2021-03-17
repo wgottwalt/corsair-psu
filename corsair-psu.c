@@ -452,18 +452,16 @@ static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, in
 	struct corsairpsu_crit_values *crits = &priv->crit_values;
 	int err = -EOPNOTSUPP;
 
-	if (channel < 2) {
-		switch (attr) {
-		case hwmon_temp_input:
-			return corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0,
-						    channel, val);
-		case hwmon_temp_crit:
-			*val = crits->temp_crit[channel];
-			err = 0;
-			break;
-		default:
-			break;
-		}
+	switch (attr) {
+	case hwmon_temp_input:
+		return corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0,
+					    channel, val);
+	case hwmon_temp_crit:
+		*val = crits->temp_crit[channel];
+		err = 0;
+		break;
+	default:
+		break;
 	}
 
 	return err;

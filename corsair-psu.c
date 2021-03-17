@@ -336,14 +336,21 @@ static void corsairpsu_check_quirks(struct corsairpsu_data *priv)
 static umode_t corsairpsu_hwmon_temp_is_visible(const struct corsairpsu_data *priv, u32 attr,
 						int channel)
 {
+	const struct corsairpsu_crit_values *crits = &priv->crit_values;
+	umode_t res = 0444;
+
 	switch (attr) {
 	case hwmon_temp_input:
 	case hwmon_temp_label:
 	case hwmon_temp_crit:
-		return 0444;
+		if (channel > 0 && !(crits->temp_crit_support & BIT(channel - 1)))
+			res = 0;
+		break;
 	default:
-		return 0;
+		break;
 	}
+
+	return res;
 }
 
 static umode_t corsairpsu_hwmon_fan_is_visible(const struct corsairpsu_data *priv, u32 attr,
@@ -373,33 +380,49 @@ static umode_t corsairpsu_hwmon_power_is_visible(const struct corsairpsu_data *p
 static umode_t corsairpsu_hwmon_in_is_visible(const struct corsairpsu_data *priv, u32 attr,
 					      int channel)
 {
+	const struct corsairpsu_crit_values *crits = &priv->crit_values;
+	umode_t res = 0444;
+
 	switch (attr) {
 	case hwmon_in_input:
 	case hwmon_in_label:
-	case hwmon_in_lcrit:
 	case hwmon_in_crit:
-		return 0444;
+		if (channel > 0 && !(crits->in_crit_support & BIT(channel - 1)))
+			res = 0;
+		break;
+	case hwmon_in_lcrit:
+		if (channel > 0 && !(crits->in_lcrit_support & BIT(channel - 1)))
+			res = 0;
+		break;
 	default:
-		return 0;
+		break;
 	};
+
+	return res;
 }
 
 static umode_t corsairpsu_hwmon_curr_is_visible(const struct corsairpsu_data *priv, u32 attr,
 						int channel)
 {
+	const struct corsairpsu_crit_values *crits = &priv->crit_values;
 	const struct corsairpsu_quirk_commands *quirks = &priv->quirks;
+	umode_t res = 0444;
 
 	switch (attr) {
 	case hwmon_curr_input:
 		if (channel == 0 && !quirks->in_curr_support)
-			return 0;
-		return 0444;
+			res = 0;
+		break;
 	case hwmon_curr_label:
 	case hwmon_curr_crit:
-		return 0444;
+		if (channel > 0 && !(crits->curr_crit_support & BIT(channel - 1)))
+			res = 0;
+		break;
 	default:
-		return 0;
+		break;
 	}
+
+	return res;
 }
 
 static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sensor_types type,
@@ -435,10 +458,8 @@ static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, in
 			return corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0,
 						    channel, val);
 		case hwmon_temp_crit:
-			if (crits->temp_crit_support & BIT(channel)) {
-				*val = crits->temp_crit[channel];
-				err = 0;
-			}
+			*val = crits->temp_crit[channel];
+			err = 0;
 			break;
 		default:
 			break;
@@ -482,16 +503,12 @@ static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int 
 		}
 		break;
 	case hwmon_in_crit:
-		if (crits->in_crit_support & BIT(channel - 1)) {
-			*val = crits->in_crit[channel - 1];
-			err = 0;
-		}
+		*val = crits->in_crit[channel - 1];
+		err = 0;
 		break;
 	case hwmon_in_lcrit:
-		if (crits->in_lcrit_support & BIT(channel - 1)) {
-			*val = crits->in_lcrit[channel - 1];
-			err = 0;
-		}
+		*val = crits->in_lcrit[channel - 1];
+		err = 0;
 		break;
 	}
 
@@ -516,10 +533,8 @@ static int corsairpsu_hwmon_curr_read(struct corsairpsu_data *priv, u32 attr, in
 		}
 		break;
 	case hwmon_curr_crit:
-		if (crits->curr_crit_support & BIT(channel - 1)) {
-			*val = crits->curr_crit[channel - 1];
-			err = 0;
-		}
+		*val = crits->curr_crit[channel - 1];
+		err = 0;
 		break;
 	default:
 		break;

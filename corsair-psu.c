@@ -113,6 +113,21 @@ static const char *const label_amps[] = {
 	L_AMPS_3_3V
 };
 
+struct corsairpsu_crit_values {
+	long temp_crit[TEMP_COUNT];
+	long in_crit[RAIL_COUNT];
+	long in_lcrit[RAIL_COUNT];
+	long curr_crit[RAIL_COUNT];
+	u8 temp_crit_support;
+	u8 in_crit_support;
+	u8 in_lcrit_support;
+	u8 curr_crit_support;
+};
+
+struct corsairpsu_quirk_commands {
+	u8 in_curr_support;
+};
+
 struct corsairpsu_data {
 	struct hid_device *hdev;
 	struct device *hwmon_dev;
@@ -122,14 +137,8 @@ struct corsairpsu_data {
 	u8 *cmd_buffer;
 	char vendor[REPLY_SIZE];
 	char product[REPLY_SIZE];
-	long temp_crit[TEMP_COUNT];
-	long in_crit[RAIL_COUNT];
-	long in_lcrit[RAIL_COUNT];
-	long curr_crit[RAIL_COUNT];
-	u8 temp_crit_support;
-	u8 in_crit_support;
-	u8 in_lcrit_support;
-	u8 curr_crit_support;
+	struct corsairpsu_crit_values crit_values;
+	struct corsairpsu_quirk_commands quirks;
 };
 
 /* some values are SMBus LINEAR11 data which need a conversion */
@@ -279,62 +288,145 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 
 static void corsairpsu_get_criticals(struct corsairpsu_data *priv)
 {
+	struct corsairpsu_crit_values *crits = &priv->crit_values;
 	long tmp;
 	int rail;
 
-	priv->temp_crit_support = 0;
-	priv->in_crit_support = 0;
-	priv->in_lcrit_support = 0;
-	priv->curr_crit_support = 0;
+	crits->temp_crit_support = 0;
+	crits->in_crit_support = 0;
+	crits->in_lcrit_support = 0;
+	crits->curr_crit_support = 0;
 
 	for (rail = 0; rail < TEMP_COUNT; ++rail) {
 		if (!corsairpsu_get_value(priv, PSU_CMD_TEMP_HCRIT, rail, &tmp)) {
-			priv->temp_crit_support |= BIT(rail);
-			priv->temp_crit[rail] = tmp;
+			crits->temp_crit_support |= BIT(rail);
+			crits->temp_crit[rail] = tmp;
 		}
 	}
 
 	for (rail = 0; rail < RAIL_COUNT; ++rail) {
 		if (!corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS_HCRIT, rail, &tmp)) {
-			priv->in_crit_support |= BIT(rail);
-			priv->in_crit[rail] = tmp;
+			crits->in_crit_support |= BIT(rail);
+			crits->in_crit[rail] = tmp;
 		}
 
 		if (!corsairpsu_get_value(priv, PSU_CMD_RAIL_VOLTS_LCRIT, rail, &tmp)) {
-			priv->in_lcrit_support |= BIT(rail);
-			priv->in_lcrit[rail] = tmp;
+			crits->in_lcrit_support |= BIT(rail);
+			crits->in_lcrit[rail] = tmp;
 		}
 
 		if (!corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS_HCRIT, rail, &tmp)) {
-			priv->curr_crit_support |= BIT(rail);
-			priv->curr_crit[rail] = tmp;
+			crits->curr_crit_support |= BIT(rail);
+			crits->curr_crit[rail] = tmp;
 		}
+	}
+}
+
+static void corsairpsu_check_quirks(struct corsairpsu_data *priv)
+{
+	struct corsairpsu_quirk_commands *quirks = &priv->quirks;
+	long tmp;
+
+	quirks->in_curr_support = 0;
+
+	if (!corsairpsu_get_value(priv, PSU_CMD_IN_AMPS, 0, &tmp))
+		quirks->in_curr_support = 1;
+}
+
+static umode_t corsairpsu_hwmon_temp_is_visible(const struct corsairpsu_data *priv, u32 attr,
+						int channel)
+{
+	switch (attr) {
+	case hwmon_temp_input:
+	case hwmon_temp_label:
+	case hwmon_temp_crit:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t corsairpsu_hwmon_fan_is_visible(const struct corsairpsu_data *priv, u32 attr,
+					       int channel)
+{
+	switch (attr) {
+	case hwmon_fan_input:
+	case hwmon_fan_label:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static umode_t corsairpsu_hwmon_power_is_visible(const struct corsairpsu_data *priv, u32 attr,
+						 int channel)
+{
+	switch (attr) {
+	case hwmon_power_input:
+	case hwmon_power_label:
+		return 0444;
+	default:
+		return 0;
+	};
+}
+
+static umode_t corsairpsu_hwmon_in_is_visible(const struct corsairpsu_data *priv, u32 attr,
+					      int channel)
+{
+	switch (attr) {
+	case hwmon_in_input:
+	case hwmon_in_label:
+	case hwmon_in_lcrit:
+	case hwmon_in_crit:
+		return 0444;
+	default:
+		return 0;
+	};
+}
+
+static umode_t corsairpsu_hwmon_curr_is_visible(const struct corsairpsu_data *priv, u32 attr,
+						int channel)
+{
+	const struct corsairpsu_quirk_commands *quirks = &priv->quirks;
+
+	switch (attr) {
+	case hwmon_curr_input:
+		if (channel == 0 && !quirks->in_curr_support)
+			return 0;
+		return 0444;
+	case hwmon_curr_label:
+	case hwmon_curr_crit:
+		return 0444;
+	default:
+		return 0;
 	}
 }
 
 static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sensor_types type,
 					       u32 attr, int channel)
 {
-	if (type == hwmon_temp && (attr == hwmon_temp_input || attr == hwmon_temp_label ||
-				   attr == hwmon_temp_crit))
-		return 0444;
-	else if (type == hwmon_fan && (attr == hwmon_fan_input || attr == hwmon_fan_label))
-		return 0444;
-	else if (type == hwmon_power && (attr == hwmon_power_input || attr == hwmon_power_label))
-		return 0444;
-	else if (type == hwmon_in && (attr == hwmon_in_input || attr == hwmon_in_label ||
-				      attr == hwmon_in_lcrit || attr == hwmon_in_crit))
-		return 0444;
-	else if (type == hwmon_curr && (attr == hwmon_curr_input || attr == hwmon_curr_label ||
-					attr == hwmon_curr_crit))
-		return 0444;
+	const struct corsairpsu_data *priv = data;
 
-	return 0;
+	switch (type) {
+	case hwmon_temp:
+		return corsairpsu_hwmon_temp_is_visible(priv, attr, channel);
+	case hwmon_fan:
+		return corsairpsu_hwmon_fan_is_visible(priv, attr, channel);
+	case hwmon_power:
+		return corsairpsu_hwmon_power_is_visible(priv, attr, channel);
+	case hwmon_in:
+		return corsairpsu_hwmon_in_is_visible(priv, attr, channel);
+	case hwmon_curr:
+		return corsairpsu_hwmon_curr_is_visible(priv, attr, channel);
+	default:
+		return 0;
+	}
 }
 
 static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, int channel,
 				      long *val)
 {
+	struct corsairpsu_crit_values *crits = &priv->crit_values;
 	int err = -EOPNOTSUPP;
 
 	if (channel < 2) {
@@ -343,8 +435,8 @@ static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, in
 			return corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0,
 						    channel, val);
 		case hwmon_temp_crit:
-			if (priv->temp_crit_support & BIT(channel)) {
-				*val = priv->temp_crit[channel];
+			if (crits->temp_crit_support & BIT(channel)) {
+				*val = crits->temp_crit[channel];
 				err = 0;
 			}
 			break;
@@ -375,6 +467,7 @@ static int corsairpsu_hwmon_power_read(struct corsairpsu_data *priv, u32 attr, i
 
 static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
 {
+	struct corsairpsu_crit_values *crits = &priv->crit_values;
 	int err = -EOPNOTSUPP;
 
 	switch (attr) {
@@ -389,14 +482,14 @@ static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int 
 		}
 		break;
 	case hwmon_in_crit:
-		if (priv->in_crit_support & BIT(channel - 1)) {
-			*val = priv->in_crit[channel - 1];
+		if (crits->in_crit_support & BIT(channel - 1)) {
+			*val = crits->in_crit[channel - 1];
 			err = 0;
 		}
 		break;
 	case hwmon_in_lcrit:
-		if (priv->in_lcrit_support & BIT(channel - 1)) {
-			*val = priv->in_lcrit[channel - 1];
+		if (crits->in_lcrit_support & BIT(channel - 1)) {
+			*val = crits->in_lcrit[channel - 1];
 			err = 0;
 		}
 		break;
@@ -408,6 +501,7 @@ static int corsairpsu_hwmon_in_read(struct corsairpsu_data *priv, u32 attr, int 
 static int corsairpsu_hwmon_curr_read(struct corsairpsu_data *priv, u32 attr, int channel,
 				      long *val)
 {
+	struct corsairpsu_crit_values *crits = &priv->crit_values;
 	int err = -EOPNOTSUPP;
 
 	switch (attr) {
@@ -422,8 +516,8 @@ static int corsairpsu_hwmon_curr_read(struct corsairpsu_data *priv, u32 attr, in
 		}
 		break;
 	case hwmon_curr_crit:
-		if (priv->curr_crit_support & BIT(channel - 1)) {
-			*val = priv->curr_crit[channel - 1];
+		if (crits->curr_crit_support & BIT(channel - 1)) {
+			*val = crits->curr_crit[channel - 1];
 			err = 0;
 		}
 		break;
@@ -644,6 +738,7 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 	}
 
 	corsairpsu_get_criticals(priv);
+	corsairpsu_check_quirks(priv);
 
 	priv->hwmon_dev = hwmon_device_register_with_info(&hdev->dev, "corsairpsu", priv,
 							  &corsairpsu_chip_info, 0);

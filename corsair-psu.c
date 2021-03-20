@@ -388,6 +388,9 @@ static umode_t corsairpsu_hwmon_curr_is_visible(const struct corsairpsu_data *pr
 
 	switch (attr) {
 	case hwmon_curr_input:
+		if (channel == 0 && !priv->in_curr_cmd_support)
+			res = 0;
+		break;
 	case hwmon_curr_label:
 	case hwmon_curr_crit:
 		if (channel > 0 && !(priv->curr_crit_support & BIT(channel - 1)))
@@ -419,28 +422,6 @@ static umode_t corsairpsu_hwmon_ops_is_visible(const void *data, enum hwmon_sens
 	default:
 		return 0;
 	}
-}
-
-static int corsairpsu_calc_in_curr(struct corsairpsu_data *priv, long *val)
-{
-	long watts = 0;
-	long volts = 0;
-	int err = 0;
-
-	err = corsairpsu_get_value(priv, PSU_CMD_TOTAL_WATTS, 0, &watts);
-	if (err < 0)
-		return err;
-
-	err = corsairpsu_get_value(priv, PSU_CMD_IN_VOLTS, 0, &volts);
-	if (err < 0)
-		return err;
-
-	if (watts <= 0 && volts <= 0)
-		return -EOPNOTSUPP;
-
-	*val = watts / volts;
-
-	return 0;
 }
 
 static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, int channel,
@@ -517,11 +498,7 @@ static int corsairpsu_hwmon_curr_read(struct corsairpsu_data *priv, u32 attr, in
 	case hwmon_curr_input:
 		switch (channel) {
 		case 0:
-			if (priv->in_curr_cmd_support)
-				err = corsairpsu_get_value(priv, PSU_CMD_IN_AMPS, 0, val);
-			else
-				err = corsairpsu_calc_in_curr(priv, val);
-			break;
+			return corsairpsu_get_value(priv, PSU_CMD_IN_AMPS, 0, val);
 		case 1 ... 3:
 			return corsairpsu_get_value(priv, PSU_CMD_RAIL_AMPS, channel - 1, val);
 		default:

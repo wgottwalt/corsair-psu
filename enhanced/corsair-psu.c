@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * corsair-psu.c - Linux driver for Corsair power supplies with HID sensors interface
+ * corsair-psu - Linux driver for Corsair power supplies with HID sensors interface
  * Copyright (C) 2020 Wilken Gottwalt <wilken.gottwalt@posteo.net>
  */
 
@@ -71,9 +71,10 @@
 #define PSU_CMD_RAIL_WATTS	0x96
 #define PSU_CMD_VEND_STR	0x99
 #define PSU_CMD_PROD_STR	0x9A
-#define PSU_CMD_TOTAL_WATTS	0xEE
 #define PSU_CMD_TOTAL_UPTIME	0xD1
 #define PSU_CMD_UPTIME		0xD2
+#define PSU_CMD_OCPMODE		0xD8
+#define PSU_CMD_TOTAL_WATTS	0xEE
 #define PSU_CMD_INIT		0xFE
 
 #define L_IN_VOLTS		"v_in"
@@ -268,6 +269,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		break;
 	case PSU_CMD_TOTAL_UPTIME:
 	case PSU_CMD_UPTIME:
+	case PSU_CMD_OCPMODE:
 		*val = tmp;
 		break;
 	default:
@@ -683,6 +685,22 @@ static int product_show(struct seq_file *seqf, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(product);
 
+static int ocpmode_show(struct seq_file *seqf, void *unused)
+{
+	struct corsairpsu_data *priv = seqf->private;
+	long val;
+	int ret;
+
+	ret = corsairpsu_get_value(priv, PSU_CMD_OCPMODE, 0, &val);
+	if (ret < 0)
+		seq_puts(seqf, "N/A\n");
+	else
+		seq_printf(seqf, "%s\n", (val == 0x02) ? "multi rail" : "single rail");
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(ocpmode);
+
 static void corsairpsu_debugfs_init(struct corsairpsu_data *priv)
 {
 	char name[32];
@@ -694,6 +712,7 @@ static void corsairpsu_debugfs_init(struct corsairpsu_data *priv)
 	debugfs_create_file("uptime_total", 0444, priv->debugfs, priv, &uptime_total_fops);
 	debugfs_create_file("vendor", 0444, priv->debugfs, priv, &vendor_fops);
 	debugfs_create_file("product", 0444, priv->debugfs, priv, &product_fops);
+	debugfs_create_file("ocpmode", 0444, priv->debugfs, priv, &ocpmode_fops);
 }
 
 #else

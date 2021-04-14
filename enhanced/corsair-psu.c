@@ -440,7 +440,8 @@ static int corsairpsu_calc_in_curr(struct corsairpsu_data *priv, long *val)
 	if (watts <= 0 && volts <= 0)
 		return -EOPNOTSUPP;
 
-	*val = watts / volts;
+	/* most of these PSUs have an average efficiency of 92%, so put it in there */
+	*val = watts / volts / 100 * 108;
 
 	return 0;
 }

@@ -18,7 +18,7 @@ static const Query::USBDevice CorsairDevices[] = {
 
 //--- public constructors ---
 
-Query::Query()
+Query::Query() noexcept
 : _hid_dev(nullptr), _vname(""), _pname(""), _vid(0), _pid(0), _valid(false)
 {
     int32_t err = hid_init();
@@ -43,35 +43,36 @@ Query::Query()
     _hid_dev = nullptr;
 }
 
-Query::~Query()
+Query::~Query() noexcept
 {
-    hid_close(_hid_dev);
+    if (_hid_dev)
+        hid_close(_hid_dev);
     hid_exit();
 }
 
 //--- public methods ---
 
-bool Query::valid() const
+bool Query::valid() const noexcept
 {
     return _valid && _hid_dev;
 }
 
-uint16_t Query::vid() const
+uint16_t Query::vid() const noexcept
 {
     return _vid;
 }
 
-uint16_t Query::pid() const
+uint16_t Query::pid() const noexcept
 {
     return _pid;
 }
 
-std::string Query::vendorName() const
+std::string Query::vendorName() const noexcept
 {
     return _vname;
 }
 
-std::string Query::productName() const
+std::string Query::productName() const noexcept
 {
     return _pname;
 }

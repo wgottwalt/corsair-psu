@@ -13,6 +13,7 @@ public:
         const std::string pname;
     };
     static const size_t BufSize = 64;
+    static const int32_t TimeoutMS = 250;
 
     //--- public constructors ---
     Query() noexcept;
@@ -31,12 +32,20 @@ public:
     std::string vendorName() const noexcept;
     std::string productName() const noexcept;
 
+protected:
+    //--- protected methods ---
+    bool init();
+    void cleanup();
+    int32_t cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, uint32_t *data = nullptr);
+
 private:
     //--- private properties ---
     hid_device *_hid_dev;
     std::string _vname;
     std::string _pname;
+    std::string _buffer;
     uint16_t _vid;
     uint16_t _pid;
     bool _valid;
+    bool _init_failed;
 };

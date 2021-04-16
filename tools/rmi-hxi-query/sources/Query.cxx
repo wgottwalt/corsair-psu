@@ -3,6 +3,24 @@
 #include <mutex>
 #include "Query.hxx"
 
+#define CMD_SELECT_RAIL 0x00
+#define CMD_RAIL_VOLTS_HCRIT 0x40
+#define CMD_RAIL_VOLTS_LCRIT 0x44
+#define CMD_RAIL_AMPS_HCRIT 0x46
+#define CMD_TEMP_HCRIT 0x4F
+#define CMD_IN_VOLTS 0x88
+#define CMD_IN_AMPS 0x89
+#define CMD_RAIL_VOLTS 0x8B
+#define CMD_RAIL_AMPS 0x8C
+#define CMD_TEMP0 0x8D
+#define CMD_TEMP1 0x8E
+#define CMD_FAN 0x90
+#define CMD_RAIL_WATTS 0x96
+#define CMD_VEND_STR 0x99
+#define CMD_PROD_STR 0x9A
+#define CMD_TOTAL_WATTS 0xEE
+#define CMD_TOTAL_UPTIME 0xD1
+#define CMD_UPTIME 0xD2
 #define CMD_INIT 0xFE
 
 //--- internal stuff ---

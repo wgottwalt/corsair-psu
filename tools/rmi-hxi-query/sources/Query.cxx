@@ -3,6 +3,8 @@
 #include <mutex>
 #include "Query.hxx"
 
+#define CMD_INIT 0xFE
+
 //--- internal stuff ---
 
 static const Query::USBDevice __devices[] = {
@@ -24,12 +26,10 @@ static std::mutex __mutex;
 //--- public constructors ---
 
 Query::Query() noexcept
-: _hid_dev(nullptr), _vname(""), _pname(""), _buffer(BufSize, 0), _vid(0), _pid(0), _valid(false),
+: _hid_dev(nullptr), _vname(""), _pname(""), _buffer(), _vid(0), _pid(0), _valid(false),
   _init_failed(false)
 {
-    int32_t err = hid_init();
-
-    if (err != 0)
+    if (hid_init() != 0)
         return;
 
     for (const auto &[vid, pid, vname, pname] : __devices)
@@ -93,9 +93,9 @@ std::string Query::productName() const noexcept
 
 bool Query::init()
 {
-    int32_t err = cmd(0xFE, 0x03, 0x00);
+    int32_t err = cmd(CMD_INIT, 0x03, 0x00);
 
-    if (err)
+    if (err >= 0)
         return true;
 
     return false;
@@ -117,7 +117,7 @@ int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, uint32_
     _buffer[1] = p1;
     _buffer[2] = p2;
 
-    if (hid_write(_hid_dev, reinterpret_cast<const uint8_t *>(_buffer.c_str()), _buffer.size()) < 0)
+    if (hid_write(_hid_dev, reinterpret_cast<const uint8_t *>(_buffer.data()), _buffer.size()) < 0)
         return -EIO;
 
     err = hid_read_timeout(_hid_dev, reinterpret_cast<uint8_t *>(_buffer.data()), _buffer.size(),

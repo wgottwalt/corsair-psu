@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 #include <hidapi/hidapi.h>
 
@@ -43,7 +44,7 @@ private:
     hid_device *_hid_dev;
     std::string _vname;
     std::string _pname;
-    std::string _buffer;
+    std::array<uint8_t,BufSize> _buffer;
     uint16_t _vid;
     uint16_t _pid;
     bool _valid;

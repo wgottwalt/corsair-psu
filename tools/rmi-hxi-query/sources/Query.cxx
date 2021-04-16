@@ -148,6 +148,15 @@ void Query::cleanup()
     hid_exit();
 }
 
+int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const
+{
+	const int32_t exp = (static_cast<int16_t>(val)) >> 11;
+	const int32_t mant = ((static_cast<int16_t>(val & 0x7ff)) << 5) >> 5;
+	const int32_t result = mant * scale;
+
+	return (exp >= 0) ? (result << exp) : (result >> -exp);
+}
+
 int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data)
 {
     int32_t err = 0;

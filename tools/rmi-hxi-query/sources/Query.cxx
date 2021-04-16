@@ -26,17 +26,22 @@
 //--- internal stuff ---
 
 static const Query::USBDevice __devices[] = {
-    { 0x1b1c, 0x1c03, "Corsair", "HX550i" },
-    { 0x1b1c, 0x1c04, "Corsair", "HX650i" },
-    { 0x1b1c, 0x1c05, "Corsair", "HX750i" },
-    { 0x1b1c, 0x1c06, "Corsair", "HX850i" },
-    { 0x1b1c, 0x1c07, "Corsair", "HX1000i" },
-    { 0x1b1c, 0x1c08, "Corsair", "HX1200i" },
-    { 0x1b1c, 0x1c09, "Corsair", "RM550i" },
-    { 0x1b1c, 0x1c0a, "Corsair", "RM650i" },
-    { 0x1b1c, 0x1c0b, "Corsair", "RM750i" },
-    { 0x1b1c, 0x1c0c, "Corsair", "RM850i" },
-    { 0x1b1c, 0x1c0d, "Corsair", "RM1000i" },
+    { 0x1b1c, 0x1c03 },
+    { 0x1b1c, 0x1c04 },
+    { 0x1b1c, 0x1c05 },
+    { 0x1b1c, 0x1c06 },
+    { 0x1b1c, 0x1c07 },
+    { 0x1b1c, 0x1c08 },
+    { 0x1b1c, 0x1c09 },
+    { 0x1b1c, 0x1c0a },
+    { 0x1b1c, 0x1c0b },
+    { 0x1b1c, 0x1c0c },
+    { 0x1b1c, 0x1c0d },
+};
+
+struct Data {
+    std::string vendor;
+    std::string product;
 };
 
 static std::mutex __mutex;
@@ -44,20 +49,18 @@ static std::mutex __mutex;
 //--- public constructors ---
 
 Query::Query() noexcept
-: _hid_dev(nullptr), _vname(""), _pname(""), _buffer(), _vid(0), _pid(0), _valid(false),
+: _hid_dev(nullptr), _data(new Data), _buffer(), _vid(0), _pid(0), _valid(false),
   _init_failed(false)
 {
     if (hid_init() != 0)
         return;
 
-    for (const auto &[vid, pid, vname, pname] : __devices)
+    for (const auto &[vid, pid] : __devices)
     {
         if (_hid_dev = hid_open(vid, pid, nullptr); _hid_dev)
         {
             _vid = vid;
             _pid = pid;
-            _vname = vname;
-            _pname = pname;
             _valid = true;
 
             break;
@@ -66,6 +69,9 @@ Query::Query() noexcept
 
     if (_hid_dev)
     {
+        _data->vendor.resize(ReplySize, '\0');
+        _data->product.resize(ReplySize, '\0');
+
         if (!init())
         {
             _init_failed = true;
@@ -78,6 +84,7 @@ Query::~Query() noexcept
 {
     if (!_init_failed)
         cleanup();
+    delete _data;
 }
 
 //--- public methods ---
@@ -89,22 +96,34 @@ bool Query::valid() const noexcept
 
 uint16_t Query::vid() const noexcept
 {
-    return _vid;
+    if (valid())
+        return _vid;
+
+    return 0;
 }
 
 uint16_t Query::pid() const noexcept
 {
-    return _pid;
+    if (valid())
+        return _pid;
+
+    return 0;
 }
 
 std::string Query::vendorName() const noexcept
 {
-    return _vname;
+    if (valid())
+        return _data->vendor;
+
+    return "undef";
 }
 
 std::string Query::productName() const noexcept
 {
-    return _pname;
+    if (valid())
+        return _data->product;
+
+    return "undef";
 }
 
 //--- protected methods ---
@@ -114,7 +133,12 @@ bool Query::init()
     int32_t err = cmd(CMD_INIT, 0x03, 0x00);
 
     if (err >= 0)
+    {
+        cmd(3, CMD_VEND_STR, 0, _data->vendor.data());
+        cmd(3, CMD_PROD_STR, 0, _data->product.data());
+
         return true;
+    }
 
     return false;
 }
@@ -126,7 +150,7 @@ void Query::cleanup()
     hid_exit();
 }
 
-int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, uint32_t *data)
+int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data)
 {
     int32_t err = 0;
 
@@ -154,7 +178,7 @@ int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, uint32_
         return -EFAULT;
 
     if (data)
-        std::copy_n(reinterpret_cast<char *>(data), sizeof (*data), _buffer.begin());
+        std::copy_n(_buffer.data() + 2, ReplySize, reinterpret_cast<char *>(data));
 
     return 0;
 }

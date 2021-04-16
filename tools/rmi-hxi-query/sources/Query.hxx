@@ -39,6 +39,7 @@ protected:
     bool init();
     void cleanup();
     int32_t cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data = nullptr);
+    int32_t fwinfo();
 
 private:
     //--- private properties ---

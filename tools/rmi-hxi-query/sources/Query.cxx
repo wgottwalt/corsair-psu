@@ -130,12 +130,10 @@ std::string Query::productName() const noexcept
 
 bool Query::init()
 {
-    int32_t err = cmd(CMD_INIT, 0x03, 0x00);
-
-    if (err >= 0)
+    if (int32_t err = cmd(CMD_INIT, 0x03, 0x00); err >= 0)
     {
-        cmd(3, CMD_VEND_STR, 0, _data->vendor.data());
-        cmd(3, CMD_PROD_STR, 0, _data->product.data());
+        if (err = fwinfo(); err < 0)
+            return false;
 
         return true;
     }
@@ -181,4 +179,16 @@ int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *d
         std::copy_n(_buffer.data() + 2, ReplySize, reinterpret_cast<char *>(data));
 
     return 0;
+}
+
+int32_t Query::fwinfo()
+{
+    int32_t err = 0;
+
+    if (err = cmd(3, CMD_VEND_STR, 0, _data->vendor.data()); err < 0)
+        return err;
+    if (err = cmd(3, CMD_PROD_STR, 0, _data->product.data()); err < 0)
+        return err;
+
+    return err;
 }

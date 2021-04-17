@@ -36,11 +36,12 @@ public:
 
 protected:
     //--- protected methods ---
-    bool init();
-    void cleanup();
-    int32_t linearToInt(const uint16_t val, const int32_t scale) const;
-    int32_t cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data = nullptr);
-    int32_t fwinfo();
+    bool init() noexcept;
+    void cleanup() noexcept;
+    int32_t linearToInt(const uint16_t val, const int32_t scale) const noexcept;
+    int32_t cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data = nullptr) noexcept;
+    int32_t fwinfo() noexcept;
+    int32_t criticals() noexcept;
 
 private:
     //--- private properties ---

@@ -42,6 +42,10 @@ static const Query::USBDevice __devices[] = {
 struct Data {
     std::string vendor;
     std::string product;
+    float temp_crut[2];
+    float in_crit[3];
+    float in_lcrit[3];
+    float curr_crit[3];
 };
 
 static std::mutex __mutex;
@@ -128,7 +132,7 @@ std::string Query::productName() const noexcept
 
 //--- protected methods ---
 
-bool Query::init()
+bool Query::init() noexcept
 {
     if (int32_t err = cmd(CMD_INIT, 0x03, 0x00); err >= 0)
     {
@@ -141,14 +145,14 @@ bool Query::init()
     return false;
 }
 
-void Query::cleanup()
+void Query::cleanup() noexcept
 {
     if (_hid_dev)
         hid_close(_hid_dev);
     hid_exit();
 }
 
-int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const
+int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const noexcept
 {
 	const int32_t exp = (static_cast<int16_t>(val)) >> 11;
 	const int32_t mant = ((static_cast<int16_t>(val & 0x7ff)) << 5) >> 5;
@@ -157,7 +161,7 @@ int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const
 	return (exp >= 0) ? (result << exp) : (result >> -exp);
 }
 
-int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data)
+int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data) noexcept
 {
     int32_t err = 0;
 
@@ -190,7 +194,7 @@ int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *d
     return 0;
 }
 
-int32_t Query::fwinfo()
+int32_t Query::fwinfo() noexcept
 {
     int32_t err = 0;
 
@@ -200,4 +204,8 @@ int32_t Query::fwinfo()
         return err;
 
     return err;
+}
+
+int32_t Query::criticals() noexcept
+{
 }

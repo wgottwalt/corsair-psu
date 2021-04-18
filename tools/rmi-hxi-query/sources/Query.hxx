@@ -36,12 +36,15 @@ public:
 
 protected:
     //--- protected methods ---
+    int32_t linearToInt(const uint16_t val, const int32_t scale) const noexcept;
+    int32_t hidCmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data = nullptr)
+        noexcept;
+    int32_t request(const uint8_t cmd, const uint8_t rail, void *data) noexcept;
+    int32_t getValue(const uint8_t cmd, const uint8_t rail, int32_t *val) noexcept;
+    int32_t fwinfo() noexcept;
+    void criticals() noexcept;
     bool init() noexcept;
     void cleanup() noexcept;
-    int32_t linearToInt(const uint16_t val, const int32_t scale) const noexcept;
-    int32_t cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data = nullptr) noexcept;
-    int32_t fwinfo() noexcept;
-    int32_t criticals() noexcept;
 
 private:
     //--- private properties ---

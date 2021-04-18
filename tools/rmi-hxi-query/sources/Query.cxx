@@ -42,10 +42,14 @@ static const Query::USBDevice __devices[] = {
 struct Data {
     std::string vendor;
     std::string product;
-    float temp_crut[2];
+    float temp_crit[2];
     float in_crit[3];
     float in_lcrit[3];
     float curr_crit[3];
+    uint8_t temp_crit_support;
+    uint8_t in_crit_support;
+    uint8_t in_lcrit_support;
+    uint8_t curr_crit_support;
 };
 
 static std::mutex __mutex;
@@ -132,26 +136,6 @@ std::string Query::productName() const noexcept
 
 //--- protected methods ---
 
-bool Query::init() noexcept
-{
-    if (int32_t err = cmd(CMD_INIT, 0x03, 0x00); err >= 0)
-    {
-        if (err = fwinfo(); err < 0)
-            return false;
-
-        return true;
-    }
-
-    return false;
-}
-
-void Query::cleanup() noexcept
-{
-    if (_hid_dev)
-        hid_close(_hid_dev);
-    hid_exit();
-}
-
 int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const noexcept
 {
 	const int32_t exp = (static_cast<int16_t>(val)) >> 11;
@@ -161,7 +145,7 @@ int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const noexce
 	return (exp >= 0) ? (result << exp) : (result >> -exp);
 }
 
-int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data) noexcept
+int32_t Query::hidCmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *data) noexcept
 {
     int32_t err = 0;
 
@@ -194,18 +178,132 @@ int32_t Query::cmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void *d
     return 0;
 }
 
+int32_t Query::request(const uint8_t cmd, const uint8_t rail, void *data) noexcept
+{
+    std::lock_guard<std::mutex> guard(__mutex);
+
+    switch (cmd)
+    {
+        case CMD_RAIL_VOLTS_HCRIT:
+        case CMD_RAIL_VOLTS_LCRIT:
+        case CMD_RAIL_AMPS_HCRIT:
+        case CMD_RAIL_VOLTS:
+        case CMD_RAIL_AMPS:
+        case CMD_RAIL_WATTS:
+            if (int32_t err = hidCmd(2, CMD_SELECT_RAIL, rail, NULL); err < 0)
+                return err;
+            break;
+        default:
+            break;
+    }
+
+    return hidCmd(3, cmd, 0, data);
+}
+
+int32_t Query::getValue(const uint8_t cmd, const uint8_t rail, int32_t *val) noexcept
+{
+    uint8_t data[ReplySize];
+    uint32_t tmp;
+
+    if (int32_t err = request(cmd, rail, data); err < 0)
+        return err;
+
+    tmp = (data[3] << 24) + (data[2] << 16) + (data[1] << 8) + data[0];
+    switch (cmd)
+    {
+        case CMD_RAIL_VOLTS_HCRIT:
+        case CMD_RAIL_VOLTS_LCRIT:
+        case CMD_RAIL_AMPS_HCRIT:
+        case CMD_TEMP_HCRIT:
+        case CMD_IN_VOLTS:
+        case CMD_IN_AMPS:
+        case CMD_RAIL_VOLTS:
+        case CMD_RAIL_AMPS:
+        case CMD_TEMP0:
+        case CMD_TEMP1:
+            *val = linearToInt(tmp & 0xFFFF, 1000);
+            break;
+        case CMD_FAN:
+            *val = linearToInt(tmp & 0xFFFF, 1);
+            break;
+        case CMD_RAIL_WATTS:
+        case CMD_TOTAL_WATTS:
+            *val = linearToInt(tmp & 0xFFFF, 1000000);
+            break;
+        case CMD_TOTAL_UPTIME:
+        case CMD_UPTIME:
+            *val = tmp;
+            break;
+        default:
+            return -EOPNOTSUPP;
+    }
+
+    return 0;
+}
+
 int32_t Query::fwinfo() noexcept
 {
     int32_t err = 0;
 
-    if (err = cmd(3, CMD_VEND_STR, 0, _data->vendor.data()); err < 0)
+    if (err = hidCmd(3, CMD_VEND_STR, 0, _data->vendor.data()); err < 0)
         return err;
-    if (err = cmd(3, CMD_PROD_STR, 0, _data->product.data()); err < 0)
+    if (err = hidCmd(3, CMD_PROD_STR, 0, _data->product.data()); err < 0)
         return err;
 
     return err;
 }
 
-int32_t Query::criticals() noexcept
+void Query::criticals() noexcept
 {
+    int32_t tmp;
+
+    for (int32_t rail = 0; rail < 2; ++rail)
+    {
+        if (!getValue(CMD_TEMP_HCRIT, rail, &tmp))
+        {
+            _data->temp_crit_support |= (1 << rail);
+            _data->temp_crit[rail] = tmp;
+        }
+    }
+
+    for (int32_t rail = 0; rail < 3; ++rail)
+    {
+        if (!getValue(CMD_RAIL_VOLTS_HCRIT, rail, &tmp))
+        {
+            _data->in_crit_support |= (1 << rail);
+            _data->in_crit[rail] = tmp;
+        }
+
+        if (!getValue(CMD_RAIL_VOLTS_LCRIT, rail, &tmp))
+        {
+            _data->in_lcrit_support |= (1 << rail);
+            _data->in_lcrit[rail] = tmp;
+        }
+
+        if (!getValue(CMD_RAIL_AMPS_HCRIT, rail, &tmp))
+        {
+            _data->curr_crit_support |= (1 << rail);
+            _data->curr_crit[rail] = tmp;
+        }
+    }
+}
+
+bool Query::init() noexcept
+{
+    if (int32_t err = hidCmd(CMD_INIT, 0x03, 0x00); err >= 0)
+    {
+        if (err = fwinfo(); err < 0)
+            return false;
+
+        return true;
+    }
+
+    return false;
+}
+
+void Query::cleanup() noexcept
+{
+    if (_hid_dev)
+        hid_close(_hid_dev);
+    hid_exit();
 }

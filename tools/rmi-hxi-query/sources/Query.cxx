@@ -42,14 +42,14 @@ static const Query::USBDevice __devices[] = {
 struct Data {
     std::string vendor;
     std::string product;
-    float temp_crit[2];
-    float in_crit[3];
+    float temp_hcrit[2];
+    float in_hcrit[3];
     float in_lcrit[3];
-    float curr_crit[3];
-    uint8_t temp_crit_support;
-    uint8_t in_crit_support;
+    float curr_hcrit[3];
+    uint8_t temp_hcrit_support;
+    uint8_t in_hcrit_support;
     uint8_t in_lcrit_support;
-    uint8_t curr_crit_support;
+    uint8_t curr_hcrit_support;
 };
 
 static std::mutex __mutex;
@@ -134,6 +134,40 @@ std::string Query::productName() const noexcept
     return "undef";
 }
 
+Query::Result Query::value(const Values val) const noexcept
+{
+    if (valid())
+    {
+        switch (val)
+        {
+            case Values::HighCritTemp0:
+                return {_data->temp_hcrit[0], _data->temp_hcrit_support & 1};
+            case Values::HighCritTemp1:
+                return {_data->temp_hcrit[1], _data->temp_hcrit_support & 2};
+            case Values::HighCritCurr3v3:
+                return {_data->in_hcrit[0], _data->in_hcrit_support & 1};
+            case Values::HighCritCurr5v:
+                return {_data->in_hcrit[1], _data->in_hcrit_support & 2};
+            case Values::HighCritCurr12v:
+                return {_data->in_hcrit[2], _data->in_hcrit_support & 4};
+            case Values::HighCritVolt3v3:
+                return {_data->in_lcrit[0], _data->in_lcrit_support & 1};
+            case Values::HighCritVolt5v:
+                return {_data->in_lcrit[1], _data->in_lcrit_support & 2};
+            case Values::HighCritVolt12v:
+                return {_data->in_lcrit[2], _data->in_lcrit_support & 4};
+            case Values::LowCritVolt3v3:
+                return {_data->curr_hcrit[0], _data->curr_hcrit_support & 1};
+            case Values::LowCritVolt5v:
+                return {_data->curr_hcrit[1], _data->curr_hcrit_support & 2};
+            case Values::LowCritVolt12v:
+                return {_data->curr_hcrit[2], _data->curr_hcrit_support & 4};
+        }
+    }
+
+    return {0, false};
+}
+
 //--- protected methods ---
 
 int32_t Query::linearToInt(const uint16_t val, const int32_t scale) const noexcept
@@ -180,7 +214,7 @@ int32_t Query::hidCmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void
 
 int32_t Query::request(const uint8_t cmd, const uint8_t rail, void *data) noexcept
 {
-    std::lock_guard<std::mutex> guard(__mutex);
+std::lock_guard<std::mutex> guard(__mutex);
 
     switch (cmd)
     {
@@ -261,8 +295,8 @@ void Query::criticals() noexcept
     {
         if (!getValue(CMD_TEMP_HCRIT, rail, &tmp))
         {
-            _data->temp_crit_support |= (1 << rail);
-            _data->temp_crit[rail] = tmp;
+            _data->temp_hcrit_support |= (1 << rail);
+            _data->temp_hcrit[rail] = tmp;
         }
     }
 
@@ -270,8 +304,8 @@ void Query::criticals() noexcept
     {
         if (!getValue(CMD_RAIL_VOLTS_HCRIT, rail, &tmp))
         {
-            _data->in_crit_support |= (1 << rail);
-            _data->in_crit[rail] = tmp;
+            _data->in_hcrit_support |= (1 << rail);
+            _data->in_hcrit[rail] = tmp;
         }
 
         if (!getValue(CMD_RAIL_VOLTS_LCRIT, rail, &tmp))
@@ -282,8 +316,8 @@ void Query::criticals() noexcept
 
         if (!getValue(CMD_RAIL_AMPS_HCRIT, rail, &tmp))
         {
-            _data->curr_crit_support |= (1 << rail);
-            _data->curr_crit[rail] = tmp;
+            _data->curr_hcrit_support |= (1 << rail);
+            _data->curr_hcrit[rail] = tmp;
         }
     }
 }

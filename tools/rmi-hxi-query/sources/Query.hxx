@@ -2,6 +2,7 @@
 
 #include <array>
 #include <string>
+#include <tuple>
 #include <hidapi/hidapi.h>
 
 struct Data;
@@ -9,6 +10,13 @@ struct Data;
 class Query {
 public:
     //--- public types and constants ---
+    using Result = std::tuple<float,bool>;
+    enum class Values {
+        HighCritTemp0, HighCritTemp1,
+        HighCritCurr3v3, HighCritCurr5v, HighCritCurr12v,
+        HighCritVolt3v3, HighCritVolt5v, HighCritVolt12v,
+        LowCritVolt3v3, LowCritVolt5v, LowCritVolt12v
+    };
     struct USBDevice {
         const uint16_t vid;
         const uint16_t pid;
@@ -33,6 +41,7 @@ public:
     uint16_t pid() const noexcept;
     std::string vendorName() const noexcept;
     std::string productName() const noexcept;
+    Result value(const Values val) const noexcept;
 
 protected:
     //--- protected methods ---

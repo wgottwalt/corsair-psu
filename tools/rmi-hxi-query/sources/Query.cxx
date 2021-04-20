@@ -328,6 +328,7 @@ bool Query::init() noexcept
     {
         if (err = fwinfo(); err < 0)
             return false;
+        criticals();
 
         return true;
     }

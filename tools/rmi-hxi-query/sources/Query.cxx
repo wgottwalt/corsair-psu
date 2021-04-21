@@ -296,7 +296,7 @@ void Query::criticals() noexcept
         if (!getValue(CMD_TEMP_HCRIT, rail, &tmp))
         {
             _data->temp_hcrit_support |= (1 << rail);
-            _data->temp_hcrit[rail] = tmp;
+            _data->temp_hcrit[rail] = tmp / 1000.0;
         }
     }
 
@@ -305,19 +305,19 @@ void Query::criticals() noexcept
         if (!getValue(CMD_RAIL_VOLTS_HCRIT, rail, &tmp))
         {
             _data->in_hcrit_support |= (1 << rail);
-            _data->in_hcrit[rail] = tmp;
+            _data->in_hcrit[rail] = tmp / 1000.0;
         }
 
         if (!getValue(CMD_RAIL_VOLTS_LCRIT, rail, &tmp))
         {
             _data->in_lcrit_support |= (1 << rail);
-            _data->in_lcrit[rail] = tmp;
+            _data->in_lcrit[rail] = tmp / 1000.0;
         }
 
         if (!getValue(CMD_RAIL_AMPS_HCRIT, rail, &tmp))
         {
             _data->curr_hcrit_support |= (1 << rail);
-            _data->curr_hcrit[rail] = tmp;
+            _data->curr_hcrit[rail] = tmp / 1000.0;
         }
     }
 }

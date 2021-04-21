@@ -144,24 +144,24 @@ Query::Result Query::value(const Values val) const noexcept
                 return {_data->temp_hcrit[0], _data->temp_hcrit_support & 1};
             case Values::HighCritTemp1:
                 return {_data->temp_hcrit[1], _data->temp_hcrit_support & 2};
-            case Values::HighCritCurr3v3:
-                return {_data->in_hcrit[0], _data->in_hcrit_support & 1};
-            case Values::HighCritCurr5v:
-                return {_data->in_hcrit[1], _data->in_hcrit_support & 2};
             case Values::HighCritCurr12v:
-                return {_data->in_hcrit[2], _data->in_hcrit_support & 4};
-            case Values::HighCritVolt3v3:
-                return {_data->in_lcrit[0], _data->in_lcrit_support & 1};
-            case Values::HighCritVolt5v:
-                return {_data->in_lcrit[1], _data->in_lcrit_support & 2};
+                return {_data->curr_hcrit[0], _data->in_hcrit_support & 1};
+            case Values::HighCritCurr5v:
+                return {_data->curr_hcrit[1], _data->in_hcrit_support & 2};
+            case Values::HighCritCurr3v3:
+                return {_data->curr_hcrit[2], _data->in_hcrit_support & 4};
             case Values::HighCritVolt12v:
-                return {_data->in_lcrit[2], _data->in_lcrit_support & 4};
-            case Values::LowCritVolt3v3:
-                return {_data->curr_hcrit[0], _data->curr_hcrit_support & 1};
-            case Values::LowCritVolt5v:
-                return {_data->curr_hcrit[1], _data->curr_hcrit_support & 2};
+                return {_data->in_hcrit[0], _data->in_lcrit_support & 1};
+            case Values::HighCritVolt5v:
+                return {_data->in_hcrit[1], _data->in_lcrit_support & 2};
+            case Values::HighCritVolt3v3:
+                return {_data->in_hcrit[2], _data->in_lcrit_support & 4};
             case Values::LowCritVolt12v:
-                return {_data->curr_hcrit[2], _data->curr_hcrit_support & 4};
+                return {_data->in_lcrit[0], _data->curr_hcrit_support & 1};
+            case Values::LowCritVolt5v:
+                return {_data->in_lcrit[1], _data->curr_hcrit_support & 2};
+            case Values::LowCritVolt3v3:
+                return {_data->in_lcrit[2], _data->curr_hcrit_support & 4};
         }
     }
 

@@ -28,17 +28,25 @@ int32_t main()
     {
         std::cout << "--- " << psu.vendorName() << " " << psu.productName() << " (" << std::hex
                   << psu.vid() << ":" << psu.pid() << ") ---" << std::endl;
-        std::cout << "vrm temp:      (max " << asString(V::HighCritTemp0) << "°C)\n"
-                  << "case temp:     (max " << asString(V::HighCritTemp1) << "°C)\n"
-                  << "v_out 12v:     (min " << asString(V::LowCritVolt12v) << "V max "
+        std::cout << "vrm temp:      " << asString(V::Temp0) << "°C (max "
+                      << asString(V::HighCritTemp0) << "°C)\n"
+                  << "case temp:     " << asString(V::Temp1) << "°C (max "
+                      << asString(V::HighCritTemp1) << "°C)\n"
+                  << "v_out 12v:     " << asString(V::Volt12v) << "V (min "
+                      << asString(V::LowCritVolt12v) << "V max "
                       << asString(V::HighCritVolt12v) << "V)\n"
-                  << "v_out 5v:      (min " << asString(V::LowCritVolt5v) << "V max "
+                  << "v_out 5v:      " << asString(V::Volt5v) << "V (min "
+                      << asString(V::LowCritVolt5v) << "V max "
                       << asString(V::HighCritVolt5v) << "V)\n"
-                  << "v_out 3.3v:    (min " << asString(V::LowCritVolt3v3) << "V max "
+                  << "v_out 3.3v:    " << asString(V::Volt3v3) << "V (min "
+                      << asString(V::LowCritVolt3v3) << "V max "
                       << asString(V::HighCritVolt3v3) << "V)\n"
-                  << "curr_out 12v:  (max " << asString(V::HighCritCurr12v) << "A)\n"
-                  << "curr_out 5v:   (max " << asString(V::HighCritCurr5v) << "A)\n"
-                  << "curr_out 3.3v: (max " << asString(V::HighCritCurr3v3) << "A)\n";
+                  << "curr_out 12v:  " << asString(V::Curr12v) << "A (max "
+                      << asString(V::HighCritCurr12v) << "A)\n"
+                  << "curr_out 5v:   " << asString(V::Curr5v) << "A (max "
+                      << asString(V::HighCritCurr5v) << "A)\n"
+                  << "curr_out 3.3v: " << asString(V::Curr3v3) << "A (max "
+                      << asString(V::HighCritCurr3v3) << "A)\n";
     }
     else
     {

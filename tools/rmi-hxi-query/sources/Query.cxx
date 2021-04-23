@@ -134,10 +134,13 @@ std::string Query::productName() const noexcept
     return "undef";
 }
 
-Query::Result Query::value(const Values val) const noexcept
+Query::Result Query::value(const Values val) noexcept
 {
     if (valid())
     {
+        int32_t result = 0;
+        int32_t err = 0;
+
         switch (val)
         {
             case Values::HighCritTemp0:
@@ -162,7 +165,34 @@ Query::Result Query::value(const Values val) const noexcept
                 return {_data->in_lcrit[1], _data->curr_hcrit_support & 2};
             case Values::LowCritVolt3v3:
                 return {_data->in_lcrit[2], _data->curr_hcrit_support & 4};
+            case Values::Temp0:
+                err = getValue(CMD_TEMP0, 0, &result);
+                break;
+            case Values::Temp1:
+                err = getValue(CMD_TEMP1, 0, &result);
+                break;
+            case Values::Curr12v:
+                err = getValue(CMD_RAIL_AMPS, 0, &result);
+                break;
+            case Values::Curr5v:
+                err = getValue(CMD_RAIL_AMPS, 1, &result);
+                break;
+            case Values::Curr3v3:
+                err = getValue(CMD_RAIL_AMPS, 2, &result);
+                break;
+            case Values::Volt12v:
+                err = getValue(CMD_RAIL_VOLTS, 0, &result);
+                break;
+            case Values::Volt5v:
+                err = getValue(CMD_RAIL_VOLTS, 1, &result);
+                break;
+            case Values::Volt3v3:
+                err = getValue(CMD_RAIL_VOLTS, 2, &result);
+                break;
         }
+
+        if (err >= 0)
+            return {result / 1000.0, true};
     }
 
     return {0, false};

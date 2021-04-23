@@ -13,9 +13,12 @@ public:
     using Result = std::tuple<float,bool>;
     enum class Values {
         HighCritTemp0, HighCritTemp1,
-        HighCritCurr3v3, HighCritCurr5v, HighCritCurr12v,
-        HighCritVolt3v3, HighCritVolt5v, HighCritVolt12v,
-        LowCritVolt3v3, LowCritVolt5v, LowCritVolt12v
+        HighCritCurr12v, HighCritCurr5v, HighCritCurr3v3,
+        HighCritVolt12v, HighCritVolt5v, HighCritVolt3v3,
+        LowCritVolt12v, LowCritVolt5v, LowCritVolt3v3,
+        Temp0, Temp1,
+        Curr12v, Curr5v, Curr3v3,
+        Volt12v, Volt5v, Volt3v3,
     };
     struct USBDevice {
         const uint16_t vid;
@@ -41,7 +44,7 @@ public:
     uint16_t pid() const noexcept;
     std::string vendorName() const noexcept;
     std::string productName() const noexcept;
-    Result value(const Values val) const noexcept;
+    Result value(const Values val) noexcept;
 
 protected:
     //--- protected methods ---

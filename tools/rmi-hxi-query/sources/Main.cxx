@@ -46,7 +46,11 @@ int32_t main()
                   << "curr_out 5v:   " << asString(V::Curr5v) << "A (max "
                       << asString(V::HighCritCurr5v) << "A)\n"
                   << "curr_out 3.3v: " << asString(V::Curr3v3) << "A (max "
-                      << asString(V::HighCritCurr3v3) << "A)\n";
+                      << asString(V::HighCritCurr3v3) << "A)\n"
+                  << "power 12v:     " << asString(V::Watt12v) << "W\n"
+                  << "power 5v:      " << asString(V::Watt5v) << "W\n"
+                  << "power 3v3:     " << asString(V::Watt3v3) << "W\n"
+                  << std::endl;
     }
     else
     {

@@ -197,6 +197,12 @@ Query::Result Query::value(const Values val) noexcept
             case Values::Watt3v3:
                 err = getValue(CMD_RAIL_WATTS, 2, &result);
                 break;
+            case Values::VoltIn:
+                err = getValue(CMD_IN_VOLTS, 2, &result);
+                break;
+            case Values::Fan:
+                err = getValue(CMD_FAN, 2, &result);
+                break;
         }
 
         if (err >= 0)

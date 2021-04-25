@@ -19,7 +19,9 @@ public:
         Temp0, Temp1,
         Curr12v, Curr5v, Curr3v3,
         Volt12v, Volt5v, Volt3v3,
-        Watt12v, Watt5v, Watt3v3
+        Watt12v, Watt5v, Watt3v3,
+        VoltIn,
+        Fan
     };
     struct USBDevice {
         const uint16_t vid;

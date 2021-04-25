@@ -9,7 +9,6 @@
 #define CMD_RAIL_AMPS_HCRIT 0x46
 #define CMD_TEMP_HCRIT 0x4F
 #define CMD_IN_VOLTS 0x88
-#define CMD_IN_AMPS 0x89
 #define CMD_RAIL_VOLTS 0x8B
 #define CMD_RAIL_AMPS 0x8C
 #define CMD_TEMP0 0x8D
@@ -191,15 +190,12 @@ Query::Result Query::value(const Values val) noexcept
                 break;
             case Values::Watt12v:
                 err = getValue(CMD_RAIL_WATTS, 0, &result);
-                result /= 1000.0;
                 break;
             case Values::Watt5v:
                 err = getValue(CMD_RAIL_WATTS, 1, &result);
-                result /= 1000.0;
                 break;
             case Values::Watt3v3:
                 err = getValue(CMD_RAIL_WATTS, 2, &result);
-                result /= 1000.0;
                 break;
         }
 
@@ -292,7 +288,6 @@ int32_t Query::getValue(const uint8_t cmd, const uint8_t rail, int32_t *val) noe
         case CMD_RAIL_AMPS_HCRIT:
         case CMD_TEMP_HCRIT:
         case CMD_IN_VOLTS:
-        case CMD_IN_AMPS:
         case CMD_RAIL_VOLTS:
         case CMD_RAIL_AMPS:
         case CMD_TEMP0:
@@ -304,7 +299,7 @@ int32_t Query::getValue(const uint8_t cmd, const uint8_t rail, int32_t *val) noe
             break;
         case CMD_RAIL_WATTS:
         case CMD_TOTAL_WATTS:
-            *val = linearToInt(tmp & 0xFFFF, 1000000);
+            *val = linearToInt(tmp & 0xFFFF, 1000);
             break;
         case CMD_TOTAL_UPTIME:
         case CMD_UPTIME:

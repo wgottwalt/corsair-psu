@@ -32,6 +32,8 @@ int32_t main()
                       << asString(V::HighCritTemp0) << "°C)\n"
                   << "case temp:     " << asString(V::Temp1) << "°C (max "
                       << asString(V::HighCritTemp1) << "°C)\n"
+                  << "fan:           " << asString(V::Fan) << "rpm\n"
+                  << "v_in:          " << asString(V::VoltIn) << "V\n"
                   << "v_out 12v:     " << asString(V::Volt12v) << "V (min "
                       << asString(V::LowCritVolt12v) << "V max "
                       << asString(V::HighCritVolt12v) << "V)\n"

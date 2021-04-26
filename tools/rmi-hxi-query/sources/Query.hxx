@@ -21,7 +21,8 @@ public:
         Volt12v, Volt5v, Volt3v3,
         Watt12v, Watt5v, Watt3v3,
         VoltIn,
-        Fan
+        Fan,
+        Uptime, TotalUptime
     };
     struct USBDevice {
         const uint16_t vid;

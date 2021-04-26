@@ -195,13 +195,19 @@ Query::Result Query::value(const Values val) noexcept
                 err = getValue(CMD_RAIL_WATTS, 1, &result);
                 break;
             case Values::Watt3v3:
-                err = getValue(CMD_RAIL_WATTS, 0, &result);
+                err = getValue(CMD_RAIL_WATTS, 2, &result);
                 break;
             case Values::VoltIn:
                 err = getValue(CMD_IN_VOLTS, 0, &result);
                 break;
             case Values::Fan:
-                err = getValue(CMD_FAN, 2, &result);
+                err = getValue(CMD_FAN, 0, &result);
+                break;
+            case Values::Uptime:
+                err = getValue(CMD_UPTIME, 0, &result);
+                break;
+            case Values::TotalUptime:
+                err = getValue(CMD_TOTAL_UPTIME, 0, &result);
                 break;
         }
 

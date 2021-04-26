@@ -24,11 +24,43 @@ int32_t main()
         return ss.str();
     };
 
+    const auto uptime = [&psu](const bool total)
+    {
+        const int32_t seconds_per_hour = 60 * 60;
+        const int32_t seconds_per_day = seconds_per_hour * 24;
+        const auto [val, valid] = psu.value(total ? V::TotalUptime : V::Uptime);
+        const int32_t seconds = val;
+        std::stringstream ss;
+
+        if (valid)
+        {
+            if (val > seconds_per_day)
+            {
+                ss << std::setw(2) << std::setfill('0') << (seconds / seconds_per_day) << ":"
+                   << std::setw(2) << std::setfill('0')
+                       << (seconds % seconds_per_day / seconds_per_hour) << ":"
+                   << std::setw(2) << std::setfill('0') << (seconds % seconds_per_hour / 60) << ":"
+                   << std::setw(2) << std::setfill('0') << (seconds % 60);
+            }
+            else
+            {
+                ss << std::setw(2) << std::setfill('0')
+                       << (seconds % seconds_per_day / seconds_per_hour) << ":"
+                   << std::setw(2) << std::setfill('0') << (seconds % seconds_per_hour / 60) << ":"
+                   << std::setw(2) << std::setfill('0') << (seconds % 60);
+            }
+        }
+
+        return ss.str();
+    };
+
     if (psu.valid())
     {
         std::cout << "--- " << psu.vendorName() << " " << psu.productName() << " (" << std::hex
-                  << psu.vid() << ":" << psu.pid() << ") ---" << std::endl;
-        std::cout << "vrm temp:      " << asString(V::Temp0) << "°C (max "
+                  << psu.vid() << ":" << psu.pid() << ") ---\n"
+                  << "uptime:        " << uptime(false) << "\n"
+                  << "total uptime:  " << uptime(true) << "\n"
+                  << "vrm temp:      " << asString(V::Temp0) << "°C (max "
                       << asString(V::HighCritTemp0) << "°C)\n"
                   << "case temp:     " << asString(V::Temp1) << "°C (max "
                       << asString(V::HighCritTemp1) << "°C)\n"

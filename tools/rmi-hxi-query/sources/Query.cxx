@@ -205,10 +205,10 @@ Query::Result Query::value(const Values val) noexcept
                 break;
             case Values::Uptime:
                 err = getValue(CMD_UPTIME, 0, &result);
-                break;
+                return {result, (err >= 0) ? true : false};
             case Values::TotalUptime:
                 err = getValue(CMD_TOTAL_UPTIME, 0, &result);
-                break;
+                return {result, (err >= 0) ? true : false};
         }
 
         if (err >= 0)

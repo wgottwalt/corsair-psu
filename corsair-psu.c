@@ -810,6 +810,6 @@ static struct hid_driver corsairpsu_driver = {
 };
 module_hid_driver(corsairpsu_driver);
 
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("Dual MPL/GPL");
 MODULE_AUTHOR("Wilken Gottwalt <wilken.gottwalt@posteo.net>");
 MODULE_DESCRIPTION("Linux driver for Corsair power supplies with HID sensors interface");

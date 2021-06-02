@@ -819,7 +819,7 @@ static int corsairpsu_resume(struct hid_device *hdev)
 {
 	struct corsairpsu_data *priv = hid_get_drvdata(hdev);
 
-	/* on some PSUs the microcontroller gets turned off, so we need to re-init it */
+	/* some PSUs turn off the microcontroller during standby, so a reinit is required */
 	return corsairpsu_init(priv);
 }
 #endif

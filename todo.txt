@@ -7,16 +7,16 @@ Add more RMi/HXi support
 
 userspace tool:
 - rmi-hxi-query (done)
-  A tool which to query the micro-controller of the HXi/RMi series, which basically
-  works the same way the driver does. But it runs in userspace, uses the hidapi lib
-  and does not need the driver at all.
+  Is a tool which can query the micro-controller of the HXi/RMi series, which
+  basically works the same way the driver does. But it runs in userspace, uses
+  the hidapi lib and does not need the driver at all.
 
 enhanced corsair-psu driver: (partly done)
   It is the same driver as the mainline driver but with enhanced functionality,
-  which is discouraged in kernel space. It supports calculating input current (just
-  a proof of concet - actually a wild guess based on efficiency curves from the PSU
-  manuals) and reporting over-current-protection status (will make it switchable).
-  Fan control will be added, too.
+  which is discouraged in kernel space. It supports calculating input current
+  (just a proof of concept - actually a wild guess based on efficiency curves
+  from the PSU manuals) and reporting over-current-protection status (will make
+  it switchable in debugfs). Fan control will be added, too.
 
 Get support up for the AXi series:
 
@@ -26,7 +26,8 @@ Get support up for the AXi series:
 1B1C 1C11 Corsair AX1600i
 
 The USB dongles for the AXi series actually use a plain cp210x usb-serial bridge
-but only connectable to the AXi series PSUs by a propreitary connector. The first
-USD ID is already part of the cp210x driver. There are two possible ways to go to
-get this driver done. Writing a driver attaching to tty subsystem and these USB ids
-or replicate some functionality of the cp210x driver and add the hwmon stuff.
+but only connectable to the AXi series PSUs by a propreitary connector. The
+first USD ID is already part of the cp210x driver. There are two possible ways
+to go to get this driver done. Writing a driver attaching to tty subsystem and
+these USB ids or replicate some functionality of the cp210x driver and add the
+hwmon stuff.

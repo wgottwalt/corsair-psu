@@ -264,7 +264,7 @@ int32_t Query::hidCmd(const uint8_t p0, const uint8_t p1, const uint8_t p2, void
 
 int32_t Query::request(const uint8_t cmd, const uint8_t rail, void *data) noexcept
 {
-std::lock_guard<std::mutex> guard(__mutex);
+    std::lock_guard<std::mutex> guard(__mutex);
 
     switch (cmd)
     {

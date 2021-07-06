@@ -34,13 +34,13 @@ public:
 
     //--- public constructors ---
     Query() noexcept;
-    Query(const Query &rhs) = delete;
-    Query(Query &&rhs) = delete;
+    Query(const Query &rhs) noexcept(false) = delete;
+    Query(Query &&rhs) noexcept = delete;
     ~Query() noexcept;
 
     //--- public operators ---
-    Query &operator=(const Query &rhs) = delete;
-    Query &operator=(Query &&rhs) = delete;
+    Query &operator=(const Query &rhs) noexcept(false) = delete;
+    Query &operator=(Query &&rhs) noexcept = delete;
 
     //--- public methods ---
     bool valid() const noexcept;

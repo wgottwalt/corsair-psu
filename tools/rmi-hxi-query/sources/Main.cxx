@@ -5,7 +5,7 @@
 
 using V = Query::Values;
 
-int32_t main()
+int32_t main() noexcept(false)
 {
     Query psu;
 

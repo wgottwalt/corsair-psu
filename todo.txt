@@ -16,7 +16,9 @@ enhanced corsair-psu driver: (partly done)
   which is discouraged in kernel space. It supports calculating input current
   (just a proof of concept - actually a wild guess based on efficiency curves
   from the PSU manuals) and reporting over-current-protection status (will make
-  it switchable in debugfs). Fan control will be added, too.
+  it switchable in debugfs). Fan control will be added, too. Add collecting of
+  statistical data (at least per session) which is actually supported by the
+  hwmon subsystem.
 
 Get support up for the AXi series:
 

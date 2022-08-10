@@ -114,12 +114,22 @@ static const char *const label_amps[] = {
 	L_AMPS_3_3V
 };
 
+struct corsairpsu_stats {
+	long temp_max[TEMP_COUNT];
+	long fan_max;
+	long power_total_max;
+	long power_max[RAIL_COUNT];
+	long in_max[RAIL_COUNT];
+	long curr_max[RAIL_COUNT];
+};
+
 struct corsairpsu_data {
 	struct hid_device *hdev;
 	struct device *hwmon_dev;
 	struct dentry *debugfs;
 	struct completion wait_completion;
 	struct mutex lock; /* for locking access to cmd_buffer */
+	struct corsairpsu_stats stats;
 	u8 *cmd_buffer;
 	char vendor[REPLY_SIZE];
 	char product[REPLY_SIZE];
@@ -453,14 +463,33 @@ static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, in
 
 	switch (attr) {
 	case hwmon_temp_input:
-		return corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0,
-					    channel, val);
+	{
+		err = corsairpsu_get_value(priv, channel ? PSU_CMD_TEMP1 : PSU_CMD_TEMP0, channel,
+					   val);
+		if (!err)
+			priv->stats.temp_max[channel] = max(*val, priv->stats.temp_max[channel]);
+		break;
+	}
 	case hwmon_temp_crit:
 		*val = priv->temp_crit[channel];
 		err = 0;
 		break;
 	default:
 		break;
+	}
+
+	return err;
+}
+
+static int corsairpsu_hwmon_fan_read(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
+{
+	int err = -EOPNOTSUPP;
+
+	if (attr == hwmon_fan_input)
+	{
+		err = corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
+		if (!err)
+			priv->stats.fan_max = max(*val, priv->stats.fan_max);
 	}
 
 	return err;
@@ -551,9 +580,7 @@ static int corsairpsu_hwmon_ops_read(struct device *dev, enum hwmon_sensor_types
 	case hwmon_temp:
 		return corsairpsu_hwmon_temp_read(priv, attr, channel, val);
 	case hwmon_fan:
-		if (attr == hwmon_fan_input)
-			return corsairpsu_get_value(priv, PSU_CMD_FAN, 0, val);
-		return -EOPNOTSUPP;
+		return corsairpsu_hwmon_fan_read(priv, attr, channel, val);
 	case hwmon_power:
 		return corsairpsu_hwmon_power_read(priv, attr, channel, val);
 	case hwmon_in:
@@ -702,6 +729,36 @@ static int ocpmode_show(struct seq_file *seqf, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(ocpmode);
 
+static int vrm_temp_max_show(struct seq_file *seqf, void *unused)
+{
+	struct corsairpsu_data *priv = seqf->private;
+
+	seq_printf(seqf, "%ld\n", priv->stats.temp_max[0]);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(vrm_temp_max);
+
+static int case_temp_max_show(struct seq_file *seqf, void *unused)
+{
+	struct corsairpsu_data *priv = seqf->private;
+
+	seq_printf(seqf, "%ld\n", priv->stats.temp_max[1]);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(case_temp_max);
+
+static int psu_fan_max_show(struct seq_file *seqf, void *unused)
+{
+	struct corsairpsu_data *priv = seqf->private;
+
+	seq_printf(seqf, "%ld\n", priv->stats.fan_max);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(psu_fan_max);
+
 static void corsairpsu_debugfs_init(struct corsairpsu_data *priv)
 {
 	char name[32];
@@ -714,6 +771,9 @@ static void corsairpsu_debugfs_init(struct corsairpsu_data *priv)
 	debugfs_create_file("vendor", 0444, priv->debugfs, priv, &vendor_fops);
 	debugfs_create_file("product", 0444, priv->debugfs, priv, &product_fops);
 	debugfs_create_file("ocpmode", 0444, priv->debugfs, priv, &ocpmode_fops);
+	debugfs_create_file("vrm_temp_max", 0444, priv->debugfs, priv, &vrm_temp_max_fops);
+	debugfs_create_file("case_temp_max", 0444, priv->debugfs, priv, &case_temp_max_fops);
+	debugfs_create_file("psu_fan_max", 0444, priv->debugfs, priv, &psu_fan_max_fops);
 }
 
 #else

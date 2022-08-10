@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+ OR MPL-1.1
 /*
- * corsair-psu - Linux driver for Corsair power supplies with HID sensors interface
+ * corsair-psu.c - Linux driver for Corsair power supplies with HID sensors interface
  * Copyright (C) 2020 Wilken Gottwalt <wilken.gottwalt@posteo.net>
  */
 
@@ -400,6 +400,9 @@ static umode_t corsairpsu_hwmon_curr_is_visible(const struct corsairpsu_data *pr
 
 	switch (attr) {
 	case hwmon_curr_input:
+		if (channel == 0 && !priv->in_curr_cmd_support)
+			res = 0;
+		break;
 	case hwmon_curr_label:
 	case hwmon_curr_crit:
 		if (channel > 0 && !(priv->curr_crit_support & BIT(channel - 1)))

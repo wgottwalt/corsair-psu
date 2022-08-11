@@ -55,6 +55,7 @@
 #define SECONDS_PER_DAY		(SECONDS_PER_HOUR * 24)
 #define RAIL_COUNT		3 /* 3v3 + 5v + 12v */
 #define TEMP_COUNT		2
+#define OCP_MULTI_RAIL		0x02
 
 #define PSU_CMD_SELECT_RAIL	0x00 /* expects length 2 */
 #define PSU_CMD_RAIL_VOLTS_HCRIT 0x40 /* the rest of the commands expect length 3 */
@@ -668,11 +669,18 @@ static int ocpmode_show(struct seq_file *seqf, void *unused)
 	long val;
 	int ret;
 
+	/*
+	 * The rail mode is switchable on the fly. The RAW interface can be used for this. But it
+	 * will not be included here, because I consider it somewhat dangerous for the health of the
+	 * PSU. The returned value can be a bogus one, if the PSU is in the process of switching and
+	 * getting of the value itself can also fail during this. Because of this every other value
+	 * than OCP_MULTI_RAIL can be considered as "single rail".
+	 */
 	ret = corsairpsu_get_value(priv, PSU_CMD_OCPMODE, 0, &val);
 	if (ret < 0)
 		seq_puts(seqf, "N/A\n");
 	else
-		seq_printf(seqf, "%s\n", (val == 0x02) ? "multi rail" : "single rail");
+		seq_printf(seqf, "%s\n", (val == OCP_MULTI_RAIL) ? "multi rail" : "single rail");
 
 	return 0;
 }

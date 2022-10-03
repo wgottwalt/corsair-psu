@@ -81,6 +81,7 @@ int32_t main() noexcept(false)
                       << asString(V::HighCritCurr5v) << "A)\n"
                   << "curr_out 3.3v: " << asString(V::Curr3v3) << "A (max "
                       << asString(V::HighCritCurr3v3) << "A)\n"
+                  << "power total:   " << asString(V::WattTotal) << "W\n"
                   << "power 12v:     " << asString(V::Watt12v) << "W\n"
                   << "power 5v:      " << asString(V::Watt5v) << "W\n"
                   << "power 3v3:     " << asString(V::Watt3v3) << "W\n"
@@ -89,7 +90,7 @@ int32_t main() noexcept(false)
     else
     {
         std::cout << "No device found... Does your user have the rights to access usb device?\n"
-                  << "If not, give the proper rights to the user or use root." << std::endl;
+                  << "If not, give proper rights to the user or use root." << std::endl;
     }
 
     return 0;

@@ -19,6 +19,7 @@ public:
         Temp0, Temp1,
         Curr12v, Curr5v, Curr3v3,
         Volt12v, Volt5v, Volt3v3,
+        WattTotal,
         Watt12v, Watt5v, Watt3v3,
         VoltIn,
         Fan,

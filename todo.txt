@@ -29,7 +29,7 @@ Get support up for the AXi series:
 
 The USB dongles for the AXi series actually use a plain cp210x usb-serial bridge
 but only connectable to the AXi series PSUs by a propreitary connector. The
-first USD ID is already part of the cp210x driver. There are two possible ways
+first USB ID is already part of the cp210x driver. There are two possible ways
 to go to get this driver done. Writing a driver attaching to tty subsystem and
 these USB ids or replicate some functionality of the cp210x driver and add the
 hwmon stuff.

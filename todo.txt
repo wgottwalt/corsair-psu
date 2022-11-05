@@ -5,6 +5,9 @@ Add more RMi/HXi support
   0xC4 response 01:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
   0xD4 response d3:60:ea:fe:00:00:00:00:00:00:00:00:00:00:00:00
 
+That are dumps from a HX850i. I'm pretty sure the 2022 generation PSUs introduce
+at least one new command.
+
 userspace tool:
 - rmi-hxi-query (done)
   Is a tool which can query the micro-controller of the HXi/RMi series, which

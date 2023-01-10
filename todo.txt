@@ -4,6 +4,7 @@ Add more RMi/HXi support
   0x3B response 1b:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 (fan control stuff)
   0xC4 response 01:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
   0xD4 response d3:60:ea:fe:00:00:00:00:00:00:00:00:00:00:00:00
+  0xF0 response 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 (fan control stuff)
 
 That are dumps from a HX850i. I'm pretty sure the 2022 generation PSUs introduce
 at least one new command.

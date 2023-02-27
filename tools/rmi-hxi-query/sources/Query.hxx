@@ -36,20 +36,20 @@ public:
 
     //--- public constructors ---
     Query() noexcept;
-    Query(const Query &rhs) noexcept(false) = delete;
+    Query(const Query &rhs) = delete;
     Query(Query &&rhs) noexcept = delete;
     ~Query() noexcept;
 
     //--- public operators ---
-    Query &operator=(const Query &rhs) noexcept(false) = delete;
+    Query &operator=(const Query &rhs) = delete;
     Query &operator=(Query &&rhs) noexcept = delete;
 
     //--- public methods ---
     bool valid() const noexcept;
     uint16_t vid() const noexcept;
     uint16_t pid() const noexcept;
-    std::string vendorName() const noexcept;
-    std::string productName() const noexcept;
+    std::string vendorName() const;
+    std::string productName() const;
     Result value(const Values val) noexcept;
 
 protected:

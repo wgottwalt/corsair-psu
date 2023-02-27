@@ -119,7 +119,7 @@ uint16_t Query::pid() const noexcept
     return 0;
 }
 
-std::string Query::vendorName() const noexcept
+std::string Query::vendorName() const
 {
     if (valid())
         return _data->vendor;
@@ -127,7 +127,7 @@ std::string Query::vendorName() const noexcept
     return "undef";
 }
 
-std::string Query::productName() const noexcept
+std::string Query::productName() const
 {
     if (valid())
         return _data->product;

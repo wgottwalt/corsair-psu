@@ -57,7 +57,7 @@ static std::mutex __mutex;
 
 //--- public constructors ---
 
-Query::Query() noexcept
+Query::Query()
 : _hid_dev(nullptr), _data(new Data), _buffer(), _vid(0), _pid(0), _valid(false),
   _init_failed(false)
 {

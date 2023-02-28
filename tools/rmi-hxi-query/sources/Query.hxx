@@ -35,7 +35,7 @@ public:
     static const int32_t TimeoutMS = 250;
 
     //--- public constructors ---
-    Query() noexcept;
+    Query();
     Query(const Query &rhs) = delete;
     Query(Query &&rhs) noexcept = delete;
     ~Query() noexcept;

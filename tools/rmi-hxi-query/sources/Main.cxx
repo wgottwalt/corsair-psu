@@ -7,11 +7,21 @@ using V = Query::Values;
 
 int32_t main()
 {
-    Query psu;
+    Query *psu = nullptr;
+
+    try
+    {
+        psu = new Query;
+    }
+    catch (std::exception &e)
+    {
+        std::cout << "error: " << e.what() << std::endl;
+        return 1;
+    }
 
     const auto asString = [&psu](const V sensor)
     {
-        const auto [val, valid] = psu.value(sensor);
+        const auto [val, valid] = psu->value(sensor);
         std::stringstream ss;
 
         if (valid)
@@ -28,7 +38,7 @@ int32_t main()
     {
         const int32_t seconds_per_hour = 60 * 60;
         const int32_t seconds_per_day = seconds_per_hour * 24;
-        const auto [val, valid] = psu.value(total ? V::TotalUptime : V::Uptime);
+        const auto [val, valid] = psu->value(total ? V::TotalUptime : V::Uptime);
         const int32_t seconds = val;
         std::stringstream ss;
 
@@ -54,10 +64,10 @@ int32_t main()
         return ss.str();
     };
 
-    if (psu.valid())
+    if (psu->valid())
     {
-        std::cout << "--- " << psu.vendorName() << " " << psu.productName() << " (" << std::hex
-                  << psu.vid() << ":" << psu.pid() << ") ---\n"
+        std::cout << "--- " << psu->vendorName() << " " << psu->productName() << " (" << std::hex
+                  << psu->vid() << ":" << psu->pid() << ") ---\n"
                   << "uptime:        " << uptime(false) << "\n"
                   << "total uptime:  " << uptime(true) << "\n"
                   << "vrm temp:      " << asString(V::Temp0) << "°C (max "
@@ -93,6 +103,8 @@ int32_t main()
                   << "devices?\n"
                   << "You need a user with USB access rights or being root." << std::endl;
     }
+
+    delete psu;
 
     return 0;
 }

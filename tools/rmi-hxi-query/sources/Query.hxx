@@ -23,7 +23,7 @@ public:
         WattTotal,
         Watt12v, Watt5v, Watt3v3,
         VoltIn,
-        Fan,
+        Fan, FanPwmEnable,
         Uptime, TotalUptime
     };
     struct USBDevice {

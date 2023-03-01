@@ -20,6 +20,7 @@
 #define CMD_TOTAL_WATTS 0xEE
 #define CMD_TOTAL_UPTIME 0xD1
 #define CMD_UPTIME 0xD2
+#define CMD_FAN_PWM_ENABLE 0xF0
 #define CMD_INIT 0xFE
 
 //--- internal stuff ---
@@ -208,6 +209,9 @@ Query::Result Query::value(const Values val) noexcept
             case Values::Fan:
                 err = getValue(CMD_FAN, 0, &result);
                 break;
+            case Values::FanPwmEnable:
+                err = getValue(CMD_FAN_PWM_ENABLE, 0, &result);
+                break;
             case Values::Uptime:
                 err = getValue(CMD_UPTIME, 0, &result);
                 return {result, (err >= 0) ? true : false};
@@ -320,6 +324,7 @@ int32_t Query::getValue(const uint8_t cmd, const uint8_t rail, int32_t *val) noe
             break;
         case CMD_TOTAL_UPTIME:
         case CMD_UPTIME:
+        case CMD_FAN_PWM_ENABLE:
             *val = tmp;
             break;
         default:

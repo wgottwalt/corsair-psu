@@ -75,6 +75,7 @@ int32_t main()
                   << "case temp:     " << asString(V::Temp1) << "°C (max "
                       << asString(V::HighCritTemp1) << "°C)\n"
                   << "fan:           " << asString(V::Fan) << "rpm\n"
+                  << "fan control:   " << (asString(V::FanPwmEnable) == "1" ? "PWM\n" : "auto\n")
                   << "v_in:          " << asString(V::VoltIn) << "V\n"
                   << "v_out 12v:     " << asString(V::Volt12v) << "V (min "
                       << asString(V::LowCritVolt12v) << "V max "

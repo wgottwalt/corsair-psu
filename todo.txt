@@ -11,9 +11,9 @@ at least one new command.
 
 userspace tool:
 - rmi-hxi-query (done)
-  Is a tool which can query the micro-controller of the HXi/RMi series, which
-  basically works the same way the driver does. But it runs in userspace, uses
-  the hidapi lib and does not need the driver at all.
+  Is a tool for querying the micro-controller of the HXi/RMi series, which
+  basically works like the driver. But it runs in userspace, uses the hidapi lib
+  and does not need the driver at all.
 
 enhanced corsair-psu driver: (partly done)
   It is the same driver as the mainline driver but with enhanced functionality,
@@ -37,3 +37,11 @@ first USB ID is already part of the cp210x driver. There are two possible ways
 to go to get this driver done. Writing a driver attaching to tty subsystem and
 these USB ids or replicate some functionality of the cp210x driver and add the
 hwmon stuff.
+
+WARNING:
+The information/code in these drivers and tools can be used to poke the
+micro-controller. Do not do this if you are not know what you are doing and
+especially not if you have no access to Windows and the original software of
+Corsair. By poking is possible to mess up the plan which controls the automatic
+fan control mode and I have not found a way yet to reset this plan back to the
+default plan without using the original Windows software.

@@ -40,8 +40,8 @@ hwmon stuff.
 
 WARNING:
 The information/code in these drivers and tools can be used to poke the
-micro-controller. Do not do this if you are not know what you are doing and
+micro-controller. Don't poke around if you don't know what you are doing and
 especially not if you have no access to Windows and the original software of
-Corsair. By poking is possible to mess up the plan which controls the automatic
+Corsair. By poking it is possible to mess up the plan which controls the automatic
 fan control mode and I have not found a way yet to reset this plan back to the
 default plan without using the original Windows software.

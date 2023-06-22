@@ -15,11 +15,11 @@ Supported devices:
 
   Corsair HX850i
 
-  Corsair HX1000i (revision 1 and 2)
+  Corsair HX1000i (Series 2022 and Series 2023)
 
   Corsair HX1200i
 
-  Corsair HX1500i
+  Corsair HX1500i (Series 2022)
 
   Corsair RM550i
 
@@ -40,7 +40,7 @@ This driver implements the sysfs interface for the Corsair PSUs with a HID proto
 interface of the HXi and RMi series.
 These power supplies provide access to a micro-controller with 2 attached
 temperature sensors, 1 fan rpm sensor, 4 sensors for volt levels, 4 sensors for
-power usage and 4 sensors for current levels and addtional non-sensor information
+power usage and 4 sensors for current levels and additional non-sensor information
 like uptimes.
 
 Sysfs entries

@@ -146,7 +146,7 @@ static int corsairpsu_linear11_to_int(const u16 val, const int scale)
 	return (exp >= 0) ? (result << exp) : (result >> -exp);
 }
 
-/* the microcontroller uses percentage values to control pwm */
+/* the micro-controller uses percentage values to control pwm */
 static int corsairpsu_dutycycle_to_pwm(const long dutycycle)
 {
 	const int result = (256 << 16) / 100;
@@ -490,8 +490,6 @@ static int corsairpsu_hwmon_temp_read(struct corsairpsu_data *priv, u32 attr, in
 
 static int corsairpsu_hwmon_pwm_read(struct corsairpsu_data *priv, u32 attr, int channel, long *val)
 {
-	int err = -EOPNOTSUPP;
-
 	switch (attr) {
 	case hwmon_pwm_input:
 		return corsairpsu_get_value(priv, PSU_CMD_FAN_PWM, 0, val);
@@ -501,7 +499,7 @@ static int corsairpsu_hwmon_pwm_read(struct corsairpsu_data *priv, u32 attr, int
 		break;
 	}
 
-	return err;
+	return -EOPNOTSUPP;
 }
 
 static int corsairpsu_hwmon_power_read(struct corsairpsu_data *priv, u32 attr, int channel,
@@ -630,7 +628,7 @@ static const struct hwmon_ops corsairpsu_hwmon_ops = {
 	.read_string	= corsairpsu_hwmon_ops_read_string,
 };
 
-static const struct hwmon_channel_info *corsairpsu_info[] = {
+static const struct hwmon_channel_info *const corsairpsu_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ),
 	HWMON_CHANNEL_INFO(temp,
@@ -874,15 +872,15 @@ static const struct hid_device_id corsairpsu_idtable[] = {
 	{ HID_USB_DEVICE(0x1b1c, 0x1c04) }, /* Corsair HX650i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c05) }, /* Corsair HX750i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c06) }, /* Corsair HX850i */
-	{ HID_USB_DEVICE(0x1b1c, 0x1c07) }, /* Corsair HX1000i revision 1 */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c07) }, /* Corsair HX1000i Series 2022 */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c08) }, /* Corsair HX1200i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c09) }, /* Corsair RM550i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0a) }, /* Corsair RM650i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0b) }, /* Corsair RM750i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0c) }, /* Corsair RM850i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0d) }, /* Corsair RM1000i */
-	{ HID_USB_DEVICE(0x1b1c, 0x1c1e) }, /* Corsair HX1000i revision 2 */
-	{ HID_USB_DEVICE(0x1b1c, 0x1c1f) }, /* Corsair HX1500i */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c1e) }, /* Corsair HX1000i Series 2023 */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c1f) }, /* Corsair HX1500i Series 2022 */
 	{ },
 };
 MODULE_DEVICE_TABLE(hid, corsairpsu_idtable);

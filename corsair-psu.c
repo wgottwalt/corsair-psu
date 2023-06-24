@@ -42,12 +42,14 @@
  *	- the driver supports debugfs for values not fitting into the hwmon class
  *	- not every device class (HXi or RMi) supports all commands
  *	- if configured wrong the PSU resets or shuts down, often before actually hitting the
- *	- reported critical temperature
+ *	  reported critical temperature
+ *	- new models like HX1500i Series 2023 have changes in the reported vendor and product
+ *	  strings, both often longer than 16 chars and reporting the same string
  */
 
 #define DRIVER_NAME		"corsair-psu"
 
-#define REPLY_SIZE		16 /* max length of a reply to a single command */
+#define REPLY_SIZE		24 /* max length of a reply to a single command */
 #define CMD_BUFFER_SIZE		64
 #define CMD_TIMEOUT_MS		250
 #define SECONDS_PER_HOUR	(60 * 60)

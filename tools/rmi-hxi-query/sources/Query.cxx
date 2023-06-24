@@ -4,6 +4,7 @@
 #include "Query.hxx"
 
 #define CMD_SELECT_RAIL 0x00
+#define CMD_FAN_PWM 0x3B
 #define CMD_RAIL_VOLTS_HCRIT 0x40
 #define CMD_RAIL_VOLTS_LCRIT 0x44
 #define CMD_RAIL_AMPS_HCRIT 0x46
@@ -30,15 +31,15 @@ static const Query::USBDevice __devices[] = {
     { 0x1b1c, 0x1c04 }, // Corsair HX650i
     { 0x1b1c, 0x1c05 }, // Corsair HX750i
     { 0x1b1c, 0x1c06 }, // Corsair HX850i
-    { 0x1b1c, 0x1c07 }, // Corsair HX1000i revision 1
+    { 0x1b1c, 0x1c07 }, // Corsair HX1000i Series 2022
     { 0x1b1c, 0x1c08 }, // Corsair HX1200i
     { 0x1b1c, 0x1c09 }, // Corsair RM550i
     { 0x1b1c, 0x1c0a }, // Corsair RM650i
     { 0x1b1c, 0x1c0b }, // Corsair RM750i
     { 0x1b1c, 0x1c0c }, // Corsair RM850i
     { 0x1b1c, 0x1c0d }, // Corsair RM1000i
-    { 0x1b1c, 0x1c1e }, // Corsair HX1000i revision 2
-    { 0x1b1c, 0x1c1f }, // Corsair HX1500i
+    { 0x1b1c, 0x1c1e }, // Corsair HX1000i Series 2023
+    { 0x1b1c, 0x1c1f }, // Corsair HX1500i Series 2022 and Series 2023
 };
 
 struct Data {
@@ -209,6 +210,9 @@ Query::Result Query::value(const Values val) noexcept
             case Values::Fan:
                 err = getValue(CMD_FAN, 0, &result);
                 break;
+            case Values::FanPwm:
+                err = getValue(CMD_FAN_PWM, 0, &result);
+                break;
             case Values::FanPwmEnable:
                 err = getValue(CMD_FAN_PWM_ENABLE, 0, &result);
                 break;
@@ -318,15 +322,18 @@ int32_t Query::getValue(const uint8_t cmd, const uint8_t rail, int32_t *val) noe
         case CMD_FAN:
             *val = linearToInt(tmp & 0xFFFF, 1);
             break;
+        case CMD_FAN_PWM:
+            *val = linearToInt(tmp & 0xFFFF, 1000);
+            break;
+        case CMD_FAN_PWM_ENABLE:
+            *val = linearToInt(tmp & 0xFFFF, 1);
+            break;
         case CMD_RAIL_WATTS:
         case CMD_TOTAL_WATTS:
             *val = linearToInt(tmp & 0xFFFF, 1000);
             break;
         case CMD_TOTAL_UPTIME:
         case CMD_UPTIME:
-        case CMD_FAN_PWM_ENABLE:
-            *val = tmp;
-            break;
         default:
             return -EOPNOTSUPP;
     }

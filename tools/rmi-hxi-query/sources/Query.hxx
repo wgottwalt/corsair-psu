@@ -23,7 +23,7 @@ public:
         WattTotal,
         Watt12v, Watt5v, Watt3v3,
         VoltIn,
-        Fan, FanPwmEnable,
+        Fan, FanPwm, FanPwmEnable,
         Uptime, TotalUptime
     };
     struct USBDevice {
@@ -31,7 +31,7 @@ public:
         const uint16_t pid;
     };
     static const size_t BufSize = 64;
-    static const size_t ReplySize = 16;
+    static const size_t ReplySize = 24;
     static const int32_t TimeoutMS = 250;
 
     //--- public constructors ---

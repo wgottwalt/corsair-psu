@@ -44,7 +44,8 @@
  *	- if configured wrong the PSU resets or shuts down, often before actually hitting the
  *	  reported critical temperature
  *	- new models like HX1500i Series 2023 have changes in the reported vendor and product
- *	  strings, both often longer than 16 chars and reporting the same string
+ *	  strings, both are slightly longer now, report vendor and product in one string and are
+ *	  the same now
  */
 
 #define DRIVER_NAME		"corsair-psu"

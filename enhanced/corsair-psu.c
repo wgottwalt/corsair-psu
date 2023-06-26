@@ -34,23 +34,25 @@
  *	  but it is better to not rely on this (it is also hard to parse)
  *	- the driver uses raw events to be accessible from userspace (though this is not really
  *	  supported, it is just there for convenience, may be removed in the future)
- *	- a reply always start with the length and command in the same order the request used it
+ *	- a reply always starts with the length and command in the same order the request used it
  *	- length of the reply data is specific to the command used
  *	- some of the commands work on a rail and can be switched to a specific rail (0 = 12v,
  *	  1 = 5v, 2 = 3.3v)
  *	- the format of the init command 0xFE is swapped length/command bytes
  *	- parameter bytes amount and values are specific to the command (rail setting is the only
- *	  for now that uses non-zero values)
- *	- there are much more commands, especially for configuring the device, but they are not
- *	  supported because a wrong command/length can lockup the micro-controller
+ *	  one for now that uses non-zero values)
  *	- the driver supports debugfs for values not fitting into the hwmon class
- *	- not every device class (HXi, RMi or AXi) supports all commands
- *	- it is a pure sensors reading driver (will not support configuring)
+ *	- not every device class (HXi or RMi) supports all commands
+ *	- if configured wrong the PSU resets or shuts down, often before actually hitting the
+ *	  reported critical temperature
+ *	- new models like HX1500i Series 2023 have changes in the reported vendor and product
+ *	  strings, both are slightly longer now, report vendor and product in one string and are
+ *	  the same now
  */
 
 #define DRIVER_NAME		"corsair-psu"
 
-#define REPLY_SIZE		16 /* max length of a reply to a single command */
+#define REPLY_SIZE		24 /* max length of a reply to a single command */
 #define CMD_BUFFER_SIZE		64
 #define CMD_TIMEOUT_MS		250
 #define SECONDS_PER_HOUR	(60 * 60)
@@ -810,7 +812,7 @@ static const struct hwmon_ops corsairpsu_hwmon_ops = {
 	.read_string	= corsairpsu_hwmon_ops_read_string,
 };
 
-static const struct hwmon_channel_info *corsairpsu_info[] = {
+static const struct hwmon_channel_info *const corsairpsu_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
@@ -1041,13 +1043,15 @@ static const struct hid_device_id corsairpsu_idtable[] = {
 	{ HID_USB_DEVICE(0x1b1c, 0x1c04) }, /* Corsair HX650i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c05) }, /* Corsair HX750i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c06) }, /* Corsair HX850i */
-	{ HID_USB_DEVICE(0x1b1c, 0x1c07) }, /* Corsair HX1000i */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c07) }, /* Corsair HX1000i Series 2022 */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c08) }, /* Corsair HX1200i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c09) }, /* Corsair RM550i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0a) }, /* Corsair RM650i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0b) }, /* Corsair RM750i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0c) }, /* Corsair RM850i */
 	{ HID_USB_DEVICE(0x1b1c, 0x1c0d) }, /* Corsair RM1000i */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c1e) }, /* Corsair HX1000i Series 2023 */
+	{ HID_USB_DEVICE(0x1b1c, 0x1c1f) }, /* Corsair HX1500i Series 2022 and 2023 */
 	{ },
 };
 MODULE_DEVICE_TABLE(hid, corsairpsu_idtable);

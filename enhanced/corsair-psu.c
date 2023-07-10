@@ -152,11 +152,15 @@ static int corsairpsu_linear11_to_int(const u16 val, const int scale)
 }
 
 /* the micro-controller uses percentage values to control pwm */
-static int corsairpsu_dutycycle_to_pwm(const long dutycycle)
+static int corsairpsu_dutycycle_to_pwm(const int dutycycle)
 {
-	const int result = (256 << 16) / 100;
+	return ((((256 << 16) / 100) * dutycycle) >> 16) & 0xff;
+}
 
-	return (result * dutycycle) >> 16;
+static int corsairpsu_pwm_to_dutycycle(const int pwm)
+{
+	//return mult_frac(pwm, 100, 255);
+	return ((((pwm << 16) / 255) * 100) >> 16) & 0xff;
 }
 
 /*
@@ -306,7 +310,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
 		break;
 	case PSU_CMD_FAN_PWM_ENABLE:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
+		*val = tmp & 0xff;
 		/*
 		 * 0 = automatic mode, means the micro-controller controls the fan using a plan
 		 *     which can be modified, but changing this plan is not supported by this
@@ -320,8 +324,7 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 			*val = 2;
 		break;
 	case PSU_CMD_FAN_PWM:
-		*val = corsairpsu_linear11_to_int(tmp & 0xFFFF, 1);
-		*val = corsairpsu_dutycycle_to_pwm(*val);
+		*val = corsairpsu_dutycycle_to_pwm(tmp & 0xff);
 		break;
 	case PSU_CMD_RAIL_WATTS:
 	case PSU_CMD_TOTAL_WATTS:
@@ -336,6 +339,17 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 		ret = -EOPNOTSUPP;
 		break;
 	}
+
+	return ret;
+}
+
+static int corsairpsu_set_value(struct corsairpsu_data *priv, u8 cmd, u8 val)
+{
+	int ret;
+
+	mutex_lock(&priv->lock);
+	ret = corsairpsu_usb_cmd(priv, 2, cmd, val, NULL);
+	mutex_unlock(&priv->lock);
 
 	return ret;
 }
@@ -414,7 +428,7 @@ static umode_t corsairpsu_hwmon_pwm_is_visible(const struct corsairpsu_data *pri
 	switch (attr) {
 	case hwmon_pwm_input:
 	case hwmon_pwm_enable:
-		return 0444;
+		return 0644;
 	default:
 		return 0;
 	}
@@ -655,10 +669,45 @@ static int corsairpsu_hwmon_ops_read_string(struct device *dev, enum hwmon_senso
 	return -EOPNOTSUPP;
 }
 
+static int corsairpsu_hwmon_ops_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
+				      int channel, long val)
+{
+	struct corsairpsu_data *priv = dev_get_drvdata(dev);
+	int ret = -EOPNOTSUPP;
+
+	if (type == hwmon_pwm && channel == 0) {
+		switch (attr) {
+		case hwmon_pwm_input:
+			if (val >= 0 && val <= 255) {
+				val = corsairpsu_pwm_to_dutycycle(val);
+				ret = corsairpsu_set_value(priv, PSU_CMD_FAN_PWM, val);
+				ret = (ret < 0) ? -EOPNOTSUPP : 1;
+			} else {
+				ret = -EINVAL;
+			}
+			break;
+		case hwmon_pwm_enable:
+			if (val >= 1 && val <= 2) {
+				val = (val == 2) ? 0 : val;
+				ret = corsairpsu_set_value(priv, PSU_CMD_FAN_PWM_ENABLE, val);
+				ret = (ret < 0) ? -EINVAL : 1;
+			} else {
+				ret = -EOPNOTSUPP;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static const struct hwmon_ops corsairpsu_hwmon_ops = {
 	.is_visible	= corsairpsu_hwmon_ops_is_visible,
 	.read		= corsairpsu_hwmon_ops_read,
 	.read_string	= corsairpsu_hwmon_ops_read_string,
+	.write		= corsairpsu_hwmon_ops_write,
 };
 
 static const struct hwmon_channel_info *const corsairpsu_info[] = {

@@ -12,6 +12,7 @@
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
@@ -136,6 +137,7 @@ struct corsairpsu_data {
 	u8 in_crit_support;
 	u8 in_lcrit_support;
 	u8 curr_crit_support;
+	u8 last_dutycycle;;
 	bool in_curr_cmd_support; /* not all commands are supported on every PSU */
 };
 
@@ -154,13 +156,12 @@ static int corsairpsu_linear11_to_int(const u16 val, const int scale)
 /* the micro-controller uses percentage values to control pwm */
 static int corsairpsu_dutycycle_to_pwm(const int dutycycle)
 {
-	return ((((256 << 16) / 100) * dutycycle) >> 16) & 0xff;
+	return DIV_ROUND_CLOSEST(dutycycle * 255, 100);
 }
 
 static int corsairpsu_pwm_to_dutycycle(const int pwm)
 {
-	//return mult_frac(pwm, 100, 255);
-	return ((((pwm << 16) / 255) * 100) >> 16) & 0xff;
+	return DIV_ROUND_CLOSEST(pwm * 100, 255);
 }
 
 /*
@@ -236,6 +237,7 @@ static int corsairpsu_init(struct corsairpsu_data *priv)
 
 static int corsairpsu_fwinfo(struct corsairpsu_data *priv)
 {
+	long val;
 	int ret;
 
 	ret = corsairpsu_usb_cmd(priv, 3, PSU_CMD_VEND_STR, 0, priv->vendor);
@@ -245,6 +247,12 @@ static int corsairpsu_fwinfo(struct corsairpsu_data *priv)
 	ret = corsairpsu_usb_cmd(priv, 3, PSU_CMD_PROD_STR, 0, priv->product);
 	if (ret < 0)
 		return ret;
+
+	ret = corsairpsu_get_value(priv, PSU_CMD_FAN_PWM, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	priv->last_dutycycle = val & 0xff;
 
 	return 0;
 }

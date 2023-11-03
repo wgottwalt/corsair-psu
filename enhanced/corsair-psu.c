@@ -320,13 +320,14 @@ static int corsairpsu_get_value(struct corsairpsu_data *priv, u8 cmd, u8 rail, l
 	case PSU_CMD_FAN_PWM_ENABLE:
 		*val = tmp & 0xff;
 		/*
-		 * 0 = automatic mode, means the micro-controller controls the fan using a plan
-		 *     which can be modified, but changing this plan is not supported by this
-		 *     driver, the matching PWM mode is automatic fan speed control = PWM 2
-		 * 1 = fixed mode, fan runs at a fixed speed represented by a percentage
-		 *     value 0-100, this matches the PWM manual fan speed control = PWM 1
-		 * technically there is no PWM no fan speed control mode, it would be a combination
-		 * of 1 at 100%
+		 * 0: automatic mode, means the micro-controller controls the fan using a plan
+		 *    which can be modified, but changing this plan is not supported by this
+		 *    driver, the matching PWM mode is automatic fan speed control (PWM value 2)
+		 * 1: fixed mode, fan runs at a fixed speed represented by a percentage
+		 *    value 0-100, this matches the PWM manual fan speed control (PWM value 1)
+		 * *: technically there is no PWM "no fan" speed control mode, it would be a
+		 *    combination of the PSU_CMD_FAN_PWM_ENABLE value 1 and a 100% duty cycle
+		 *    (PWM value 0)
 		 */
 		if (*val == 0)
 			*val = 2;

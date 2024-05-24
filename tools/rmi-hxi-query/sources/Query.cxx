@@ -31,15 +31,15 @@ static const Query::USBDevice __devices[] = {
     { 0x1b1c, 0x1c04 }, // Corsair HX650i
     { 0x1b1c, 0x1c05 }, // Corsair HX750i
     { 0x1b1c, 0x1c06 }, // Corsair HX850i
-    { 0x1b1c, 0x1c07 }, // Corsair HX1000i Series 2022
-    { 0x1b1c, 0x1c08 }, // Corsair HX1200i
+    { 0x1b1c, 0x1c07 }, // Corsair HX1000i Legacy
+    { 0x1b1c, 0x1c08 }, // Corsair HX1200i Legacy
     { 0x1b1c, 0x1c09 }, // Corsair RM550i
     { 0x1b1c, 0x1c0a }, // Corsair RM650i
     { 0x1b1c, 0x1c0b }, // Corsair RM750i
     { 0x1b1c, 0x1c0c }, // Corsair RM850i
     { 0x1b1c, 0x1c0d }, // Corsair RM1000i
     { 0x1b1c, 0x1c1e }, // Corsair HX1000i Series 2023
-    { 0x1b1c, 0x1c1f }, // Corsair HX1500i Series 2022 and Series 2023
+    { 0x1b1c, 0x1c1f }, // Corsair HX1500i Legacy and Series 2023
     { 0x1b1c, 0x1c23 }, // Corsair HX1200i Series 2023
 };
 

@@ -40,6 +40,7 @@ static const Query::USBDevice __devices[] = {
     { 0x1b1c, 0x1c0d }, // Corsair RM1000i
     { 0x1b1c, 0x1c1e }, // Corsair HX1000i Series 2023
     { 0x1b1c, 0x1c1f }, // Corsair HX1500i Series 2022 and Series 2023
+    { 0x1b1c, 0x1c23 }, // Corsair HX1200i Series 2023
 };
 
 struct Data {

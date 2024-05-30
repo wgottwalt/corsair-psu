@@ -6,7 +6,7 @@ Add more RMi/HXi support
   0xD4 response d3:60:ea:fe:00:00:00:00:00:00:00:00:00:00:00:00
   0xF0 response 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00 (fan control stuff)
 
-That are dumps from a HX850i. I'm pretty sure the 2022 generation PSUs introduce
+That are dumps from a HX850i. I'm pretty sure the 2022/2023 generation PSUs introduce
 at least one new command.
 
 userspace tool:
@@ -14,6 +14,19 @@ userspace tool:
   Is a tool for querying the micro-controller of the HXi/RMi series, which
   basically works like the driver. But it runs in userspace, uses the hidapi lib
   and does not need the driver at all.
+
+corsair-psu driver: (the one that got mainlined)
+  I will add fan-control. The PSU can do two modes, automatic (with some saved plan
+  with trigger levels) and manual mode. This can be mapped to 3 of the 4 (?) modes
+  supported by the hwmon subsystem. It will be possible to add full automatic mode,
+  manual mode (percentage setable between about 27% and 100% duty) and full on mode.
+  It will not be possible to change the plans being part of the automatic mode. I
+  do not fully know how these plans are set up. And to be honest, it would be a nice
+  way to damage your hardware. The manual mode does not accept to low duty cycles
+  (below about 27%) and are refused by the micro-controller. After quite some testing
+  with a HX850i and a HX1500i I am sure this is save to add. The driver is already
+  prepared for this, just the logic behind writing the fan mode to the PSU is
+  missing.
 
 enhanced corsair-psu driver: (partly done)
   It is the same driver as the mainline driver but with enhanced functionality,
@@ -25,18 +38,17 @@ enhanced corsair-psu driver: (partly done)
   hwmon subsystem.
 
 Get support up for the AXi series:
+  1B1C 1C00 Controller for Corsair Link            AX760i, AX860i, AX1200i
+  1B1C 1C01 ?
+  1B1C 1C02 Corsair AX1500i
+  1B1C 1C11 Corsair AX1600i
 
-1B1C 1C00 Controller for Corsair Link            AX760i, AX860i, AX1200i
-1B1C 1C01 ?
-1B1C 1C02 Corsair AX1500i
-1B1C 1C11 Corsair AX1600i
-
-The USB dongles for the AXi series actually use a plain cp210x usb-serial bridge
-but only connectable to the AXi series PSUs by a propreitary connector. The
-first USB ID is already part of the cp210x driver. There are two possible ways
-to go to get this driver done. Writing a driver attaching to tty subsystem and
-these USB ids or replicate some functionality of the cp210x driver and add the
-hwmon stuff.
+  The USB dongles for the AXi series actually use a plain cp210x usb-serial bridge
+  but only connectable to the AXi series PSUs by a propreitary connector. The
+  first USB ID is already part of the cp210x driver. There are two possible ways
+  to go to get this driver done. Writing a driver attaching to tty subsystem and
+  these USB ids or replicate some functionality of the cp210x driver and add the
+  hwmon stuff.
 
 WARNING:
 The information/code in these drivers and tools can be used to poke the

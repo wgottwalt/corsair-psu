@@ -787,13 +787,9 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 	if (ret)
 		return ret;
 
-	ret = hid_hw_start(hdev, HID_CONNECT_HIDRAW);
+	ret = devm_hid_hw_start_and_open(hdev, HID_CONNECT_HIDRAW);
 	if (ret)
 		return ret;
-
-	ret = hid_hw_open(hdev);
-	if (ret)
-		goto fail_and_stop;
 
 	priv->hdev = hdev;
 	hid_set_drvdata(hdev, priv);
@@ -805,13 +801,13 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 	ret = corsairpsu_init(priv);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to initialize device (%d)\n", ret);
-		goto fail_and_stop;
+		return ret;
 	}
 
 	ret = corsairpsu_fwinfo(priv);
 	if (ret < 0) {
 		dev_err(&hdev->dev, "unable to query firmware (%d)\n", ret);
-		goto fail_and_stop;
+		return ret;
 	}
 
 	corsairpsu_get_criticals(priv);
@@ -822,18 +818,12 @@ static int corsairpsu_probe(struct hid_device *hdev, const struct hid_device_id 
 
 	if (IS_ERR(priv->hwmon_dev)) {
 		ret = PTR_ERR(priv->hwmon_dev);
-		goto fail_and_close;
+		return ret;
 	}
 
 	corsairpsu_debugfs_init(priv);
 
 	return 0;
-
-fail_and_close:
-	hid_hw_close(hdev);
-fail_and_stop:
-	hid_hw_stop(hdev);
-	return ret;
 }
 
 static void corsairpsu_remove(struct hid_device *hdev)
@@ -842,8 +832,6 @@ static void corsairpsu_remove(struct hid_device *hdev)
 
 	debugfs_remove_recursive(priv->debugfs);
 	hwmon_device_unregister(priv->hwmon_dev);
-	hid_hw_close(hdev);
-	hid_hw_stop(hdev);
 }
 
 static int corsairpsu_raw_event(struct hid_device *hdev, struct hid_report *report, u8 *data,

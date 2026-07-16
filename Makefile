@@ -1,5 +1,5 @@
 ccflags-y = -DEXPORT_SYMTAB
-obj-m := corsair-psu.o
+obj-m := corsair-psu.o corsair-psu-axi.o
 
 KDIR = /lib/modules/$(shell uname -r)/build/
 PWD = $(shell pwd)
@@ -10,6 +10,6 @@ clean:
 	$(MAKE) -C $(KDIR) M=$(PWD) clean
 	
 
-.PHONY: modules clean
+.PHONY: all clean
 
 -include $(KDIR)/Rules.make

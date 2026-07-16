@@ -1,9 +1,14 @@
 This is the main development repository for the corsair-psu hwmon driver which
 is also part of mainline.
 
-This driver supports all Corsair RMi and HXi series power supplies. This repo
-is used to add support for the AXi series power supplies, which are quite
-similar, but do not work with the USB HID code of the mainlined driver.
+The `corsair-psu` driver supports Corsair RMi and HXi series power supplies.
+The separate `corsair-psu-axi` USB driver supports the Corsair AX1600i. The AXi
+driver is read-only and exposes input and rail voltage, current and power,
+temperature, fan speed, and labels through hwmon.
 
-There are also tools to access/test the power supplies using libusb which will
-be added to the kernel driver if it works and is tested.
+The AX1600i transport and register protocol is based on the work in
+[corsair-top](https://github.com/thad0ctor/corsair-top).
+
+Build both modules with `make`. The AX1600i module can then be loaded with
+`modprobe corsair-psu-axi` after installation, or `insmod corsair-psu-axi.ko`
+for development testing.

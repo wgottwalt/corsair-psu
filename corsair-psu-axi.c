@@ -8,7 +8,7 @@
  * AX1600i transport and register protocol based on the corsair-top project:
  * https://github.com/thad0ctor/corsair-top
  *
- * 12V page telemetry, fan mode, uptime, and USB bridge metadata based on
+ * 12V page telemetry, fan control, uptime, and USB bridge metadata based on
  * protocol research by Jon0:
  * https://github.com/Jon0/ax1600i
  */
@@ -40,6 +40,7 @@
 #define AXI_CMD_READ		0x08
 
 #define AXI_REG_SELECT_RAIL	0x00
+#define AXI_REG_FAN_PWM		0x3b
 #define AXI_REG_IN_VOLTS	0x88
 #define AXI_REG_IN_AMPS		0x89
 #define AXI_REG_RAIL_VOLTS	0x8b
@@ -66,6 +67,7 @@
 #define AXI_CURR_COUNT		(AXI_BASE_CURR_COUNT + AXI_12V_PAGE_COUNT)
 #define AXI_BRIDGE_VERSION_SIZE	3
 #define AXI_BRIDGE_FIRMWARE_SIZE	64
+#define AXI_SAFE_MANUAL_DUTY	100
 
 #define L_IN_VOLTS		"v_in"
 #define L_OUT_VOLTS_12V		"v_out +12v"
@@ -121,6 +123,7 @@ struct corsairpsu_axi_data {
 	char product[8];
 	bool bridge_version_valid;
 	bool bridge_firmware_valid;
+	bool fan_pwm_supported;
 	bool disconnected;
 };
 
@@ -356,6 +359,16 @@ static int axi_linear11_to_int(u16 raw, int scale, long *value)
 	return 0;
 }
 
+static int axi_dutycycle_to_pwm(u8 dutycycle)
+{
+	return DIV_ROUND_CLOSEST(dutycycle * 255, 100);
+}
+
+static u8 axi_pwm_to_dutycycle(long pwm)
+{
+	return DIV_ROUND_CLOSEST(pwm * 100, 255);
+}
+
 static int axi_get_value(struct corsairpsu_axi_data *priv, u8 reg, int rail,
 			 int scale, long *value)
 {
@@ -396,6 +409,47 @@ static int axi_get_raw(struct corsairpsu_axi_data *priv, u8 reg, u8 *data,
 	return ret;
 }
 
+static int axi_set_raw(struct corsairpsu_axi_data *priv, u8 reg, u8 value)
+{
+	int ret;
+
+	mutex_lock(&priv->lock);
+	if (priv->disconnected)
+		ret = -ENODEV;
+	else
+		ret = axi_write_register_locked(priv, reg, &value, sizeof(value));
+	mutex_unlock(&priv->lock);
+
+	return ret;
+}
+
+static int axi_set_fan_mode(struct corsairpsu_axi_data *priv, bool automatic)
+{
+	u8 value;
+	int ret;
+
+	mutex_lock(&priv->lock);
+	if (priv->disconnected) {
+		ret = -ENODEV;
+		goto out;
+	}
+
+	if (!automatic) {
+		value = AXI_SAFE_MANUAL_DUTY;
+		ret = axi_write_register_locked(priv, AXI_REG_FAN_PWM, &value,
+						sizeof(value));
+		if (ret)
+			goto out;
+	}
+
+	value = automatic ? 0 : 1;
+	ret = axi_write_register_locked(priv, AXI_REG_FAN_MODE, &value,
+					sizeof(value));
+out:
+	mutex_unlock(&priv->lock);
+	return ret;
+}
+
 static int axi_get_12v_page_value(struct corsairpsu_axi_data *priv, u8 reg,
 				  int page, int scale, long *value)
 {
@@ -423,6 +477,8 @@ out:
 static umode_t axi_hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 				    u32 attr, int channel)
 {
+	const struct corsairpsu_axi_data *priv = data;
+
 	switch (type) {
 	case hwmon_temp:
 		return (attr == hwmon_temp_input || attr == hwmon_temp_label) ? 0444 : 0;
@@ -431,7 +487,13 @@ static umode_t axi_hwmon_is_visible(const void *data, enum hwmon_sensor_types ty
 	case hwmon_power:
 		return (attr == hwmon_power_input || attr == hwmon_power_label) ? 0444 : 0;
 	case hwmon_pwm:
-		return (attr == hwmon_pwm_enable && !channel) ? 0444 : 0;
+		if (channel)
+			return 0;
+		if (attr == hwmon_pwm_enable)
+			return priv->fan_pwm_supported ? 0644 : 0444;
+		if (attr == hwmon_pwm_input && priv->fan_pwm_supported)
+			return 0644;
+		return 0;
 	case hwmon_in:
 		return (attr == hwmon_in_input || attr == hwmon_in_label) ? 0444 : 0;
 	case hwmon_curr:
@@ -473,19 +535,33 @@ static int axi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		return axi_get_value(priv, AXI_REG_RAIL_WATTS, channel - 1,
 				     1000000, value);
 	case hwmon_pwm:
-		if (attr != hwmon_pwm_enable || channel)
+		if (channel)
 			return -EOPNOTSUPP;
-		ret = axi_get_raw(priv, AXI_REG_FAN_MODE, &data, sizeof(data));
-		if (ret)
-			return ret;
-		/* The PSU reports 0 for automatic mode and 1 for fixed-speed mode. */
-		if (data == 0)
-			*value = 2;
-		else if (data == 1)
-			*value = 1;
-		else
-			return -EIO;
-		return 0;
+		if (attr == hwmon_pwm_input) {
+			if (!priv->fan_pwm_supported)
+				return -EOPNOTSUPP;
+			ret = axi_get_raw(priv, AXI_REG_FAN_PWM, &data, sizeof(data));
+			if (ret)
+				return ret;
+			if (data > 100)
+				return -ERANGE;
+			*value = axi_dutycycle_to_pwm(data);
+			return 0;
+		}
+		if (attr == hwmon_pwm_enable) {
+			ret = axi_get_raw(priv, AXI_REG_FAN_MODE, &data, sizeof(data));
+			if (ret)
+				return ret;
+			/* The PSU reports 0 for automatic mode and 1 for fixed-speed mode. */
+			if (data == 0)
+				*value = 2;
+			else if (data == 1)
+				*value = 1;
+			else
+				return -EIO;
+			return 0;
+		}
+		return -EOPNOTSUPP;
 	case hwmon_in:
 		if (attr != hwmon_in_input || channel > AXI_RAIL_COUNT)
 			return -EOPNOTSUPP;
@@ -511,6 +587,31 @@ static int axi_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
 		if (!channel)
 			return axi_get_value(priv, AXI_REG_IN_AMPS, -1, 1000, value);
 		return axi_get_value(priv, AXI_REG_RAIL_AMPS, channel - 1, 1000, value);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int axi_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
+			   u32 attr, int channel, long value)
+{
+	struct corsairpsu_axi_data *priv = dev_get_drvdata(dev);
+
+	if (type != hwmon_pwm || channel)
+		return -EOPNOTSUPP;
+	if (!priv->fan_pwm_supported)
+		return -EOPNOTSUPP;
+
+	switch (attr) {
+	case hwmon_pwm_input:
+		if (value < 0 || value > 255)
+			return -EINVAL;
+		return axi_set_raw(priv, AXI_REG_FAN_PWM,
+				   axi_pwm_to_dutycycle(value));
+	case hwmon_pwm_enable:
+		if (value != 1 && value != 2)
+			return -EINVAL;
+		return axi_set_fan_mode(priv, value == 2);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -555,6 +656,7 @@ static int axi_hwmon_read_string(struct device *dev, enum hwmon_sensor_types typ
 static const struct hwmon_ops axi_hwmon_ops = {
 	.is_visible = axi_hwmon_is_visible,
 	.read = axi_hwmon_read,
+	.write = axi_hwmon_write,
 	.read_string = axi_hwmon_read_string,
 };
 
@@ -565,7 +667,7 @@ static const struct hwmon_channel_info *const axi_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(fan,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
 	HWMON_CHANNEL_INFO(pwm,
-			   HWMON_PWM_ENABLE),
+			   HWMON_PWM_INPUT | HWMON_PWM_ENABLE),
 	HWMON_CHANNEL_INFO(power,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
@@ -731,11 +833,28 @@ static int axi_read_bridge_info_locked(struct corsairpsu_axi_data *priv)
 	return first_error;
 }
 
+static int axi_check_fan_pwm_locked(struct corsairpsu_axi_data *priv)
+{
+	u8 dutycycle;
+	int ret;
+
+	ret = axi_read_register_locked(priv, AXI_REG_FAN_PWM, &dutycycle,
+				       sizeof(dutycycle));
+	if (ret)
+		return ret;
+	if (dutycycle > 100)
+		return -ERANGE;
+
+	priv->fan_pwm_supported = true;
+	return 0;
+}
+
 static int axi_probe(struct usb_interface *interface, const struct usb_device_id *id)
 {
 	struct corsairpsu_axi_data *priv;
 	u8 product[sizeof(priv->product) - 1];
 	int bridge_ret = 0;
+	int fan_pwm_ret = 0;
 	int ret;
 
 	priv = devm_kzalloc(&interface->dev, sizeof(*priv), GFP_KERNEL);
@@ -771,12 +890,17 @@ static int axi_probe(struct usb_interface *interface, const struct usb_device_id
 		ret = axi_read_register_locked(priv, AXI_REG_PRODUCT, product, sizeof(product));
 	if (!ret)
 		bridge_ret = axi_read_bridge_info_locked(priv);
+	if (!ret)
+		fan_pwm_ret = axi_check_fan_pwm_locked(priv);
 	mutex_unlock(&priv->lock);
 	if (ret)
 		goto err_put_dev;
 	if (bridge_ret)
 		dev_warn(&interface->dev, "unable to read USB bridge metadata (%d)\n",
 			 bridge_ret);
+	if (fan_pwm_ret)
+		dev_warn(&interface->dev, "fan duty-cycle control unavailable (%d)\n",
+			 fan_pwm_ret);
 
 	memcpy(priv->product, product, sizeof(product));
 	priv->product[sizeof(product)] = '\0';
